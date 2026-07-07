@@ -1,0 +1,56 @@
+# netbird stack — manual setup
+
+## Bootstrap env files
+
+```bash
+cd containers/netbird
+cp dashboard.example dashboard.env
+cp relay.example relay.env
+cp routing.example routing.env
+```
+
+## External hostname
+
+This deployment uses `netbird.yggdrasil.cfd` for public HTTPS endpoints. `dashboard.example`, `relay.example`, `routing.example`, and `management.json` all reference that hostname. If your domain differs, update all four consistently before starting the stack.
+
+## management.json secrets
+
+`management.json` is committed and contains server-side secrets (relay HMAC secret, datastore encryption key). On a fresh self-hosted install:
+
+1. Generate new secrets per [NetBird self-hosting docs](https://docs.netbird.io/selfhosted/selfhosted-quickstart).
+2. Update `Relay.Secret` and `DataStoreEncryptionKey` in `management.json`.
+3. Ensure `Relay.Addresses`, `Signal.URI`, and `Stuns` match your public hostname and ports.
+
+## relay.env
+
+- `NB_AUTH_SECRET` — must match `Relay.Secret` in `management.json`.
+- `NB_EXPOSED_ADDRESS` — public relay URL (e.g. `rels://netbird.yggdrasil.cfd:443`).
+
+## dashboard.env
+
+- `AUTH_CLIENT_SECRET` — OIDC client secret for the embedded IdP (generate during NetBird setup).
+- Endpoint variables must point at your public management URL.
+
+## routing.env
+
+- `NB_SETUP_KEY` — enrollment key from the NetBird dashboard (Management → Setup Keys). Creates the homelab routing peer.
+- `NB_MANAGEMENT_URL` — public management API URL.
+
+## TLS / reverse proxy
+
+Compose services listen on localhost. Public clients reach NetBird on `:443` via external TLS termination (planned: Nginx Proxy Manager). Until NPM is in place, ensure your existing proxy routes:
+
+- `https://netbird.yggdrasil.cfd` → management (`127.0.0.1:31801`)
+- Signal, relay, and dashboard paths per NetBird self-hosting guide
+
+STUN (`3478/udp`) must be reachable on the host's public IP.
+
+## First run
+
+```bash
+mkdir -p ~/storage/homelab/homelab-conf/netbird/{management,client}
+cd ~/homelab/containers
+./up-all-stacks.sh netbird
+```
+
+After the routing peer enrolls, approve it in the dashboard and configure network routes as needed.
