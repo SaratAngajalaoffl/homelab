@@ -22,11 +22,17 @@ cd ~/homelab/containers
 
 # Bring up a single stack manually
 docker compose -f ~/homelab/containers/arr/docker-compose.yml up -d --pull always --build
+
+# Export all *.env values to clipboard as flat JSON (human secrets workflow)
+./scripts/env/copy_env.sh
+
+# Restore *.env files from JSON (stdin or clipboard)
+./scripts/env/apply_env.sh
 ```
 
 ## Rules for agents
 
-- **Never read, write, or commit `*.env` files.** They are gitignored and contain secrets.
+- **Never read, write, or commit `*.env` files** during normal agent work. They are gitignored and contain secrets. Exception: only run `scripts/env/copy_env.sh` or `scripts/env/apply_env.sh` when the user explicitly asks for secrets export/restore.
 - **May update `*.example` files** when adding new required env vars. Keep placeholders empty or clearly marked.
 - **May create or update `.setup` files** for manual bootstrap instructions (see arr and netbird).
 - **Follow the storage convention:** config/state → `${HOME}/storage/homelab/homelab-conf/<service>/`; user content → `${HOME}/storage/homelab/homelab-data/<service>/`.
@@ -44,6 +50,8 @@ docker compose -f ~/homelab/containers/arr/docker-compose.yml up -d --pull alway
 ├── CONTEXT.md             # Domain glossary (this file's companion)
 ├── CLAUDE.md              # Agent playbook (this file)
 ├── docs/adr/              # Architecture decision records
+├── scripts/
+│   └── env/               # copy_env.sh, apply_env.sh — secrets round-trip
 └── containers/
     ├── up-all-stacks.sh
     ├── down-all-stacks.sh
@@ -69,6 +77,8 @@ docker compose -f ~/homelab/containers/arr/docker-compose.yml up -d --pull alway
 1. `cp <stack>.example <stack>.env` in the stack directory.
 2. Fill in values on the host.
 3. Read `<stack>/.setup` if present for non-obvious steps.
+
+For machine migration or disaster recovery, the human operator uses `scripts/env/copy_env.sh` (export all `*.env` to flat JSON via clipboard) and `scripts/env/apply_env.sh` (restore from JSON into paired `.env` files). Store exported JSON in a vault (e.g. Bitwarden), not in git.
 
 ### Stacks overview
 

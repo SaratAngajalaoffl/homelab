@@ -10,6 +10,12 @@
 
 **Setup manifest** — an optional `.setup` file in a stack directory with plain-text instructions for secrets or manual bootstrap steps that cannot be committed (e.g. VPN keys, API tokens). Read after copying the env template.
 
+**Env export** — `scripts/env/copy_env.sh`. Discovers all `*.env` files under the repo (or a given search root), merges key/value assignments into one flat JSON object (later files win on duplicate keys), and copies the JSON to the system clipboard. Used to back up secrets to a vault.
+
+**Env restore** — `scripts/env/apply_env.sh`. Reads flat JSON from stdin or the clipboard, finds every `*.example` file under the search root, and writes a sibling `*.env` by filling keys present in the JSON. Preserves comments and key order from the example template.
+
+**Flat env JSON** — a single JSON object `{ "KEY": "value", ... }` with no nesting. The export/restore scripts use this format so all stack secrets can live in one vault note.
+
 **homelab-conf** — host path `${HOME}/storage/homelab/homelab-conf/`. Holds app configuration, databases, and small persistent state. Bind-mounted into containers. Never committed to git.
 
 **homelab-data** — host path `${HOME}/storage/homelab/homelab-data/`. Holds bulk user-generated content (torrents, media libraries, photo libraries, Nextcloud files). Bind-mounted into containers. Never committed to git.

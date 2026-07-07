@@ -32,6 +32,33 @@ cp arr/arr.example arr/arr.env
 
 `*.env` files are gitignored. Never commit secrets.
 
+## Environment: export and restore
+
+Secret values live in `*.env` files under `containers/`. Committed `*.example` files hold the same keys with placeholders.
+
+### Export — `scripts/env/copy_env.sh`
+
+Walks the repo (or a directory you pass as the first argument), finds every `*.env`, merges assignments into one flat JSON object (later files override duplicate keys), and copies that JSON to the clipboard.
+
+Store the JSON in a secrets vault (e.g. Bitwarden note) for restore on a new machine.
+
+```bash
+./scripts/env/copy_env.sh
+# optional: ./scripts/env/copy_env.sh containers/arr
+```
+
+### Restore — `scripts/env/apply_env.sh`
+
+Reads flat JSON from stdin, or from the clipboard if stdin is empty. Finds every `*.example` under the search root and writes a sibling `.env` (e.g. `arr.example` → `arr.env`), filling keys that exist in the JSON.
+
+```bash
+./scripts/env/apply_env.sh </path/to/export.json
+# or paste JSON into the clipboard, then:
+./scripts/env/apply_env.sh
+```
+
+Optional first argument: search root directory (defaults to the git repo root).
+
 ## Stacks
 
 | Stack | Directory | Description |
