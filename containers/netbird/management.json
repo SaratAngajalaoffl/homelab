@@ -1,0 +1,27 @@
+{
+    "Stuns": [
+        {
+            "Proto": "udp",
+            "URI": "stun:netbird.yggdrasil.cfd:3478"
+        }
+    ],
+    "Relay": {
+        "Addresses": ["rels://netbird.yggdrasil.cfd:443"],
+        "CredentialsTTL": "24h",
+        "Secret": "u6IceGTw05WyT5gYP0SpUDpfPmgvfgcW5gGdZsPzkKU"
+    },
+    "Signal": {
+        "Proto": "https",
+        "URI": "netbird.yggdrasil.cfd:443"
+    },
+    "Datadir": "/var/lib/netbird",
+    "DataStoreEncryptionKey": "E83Rr6eIoVlEgS4XVXP3UYojkcEVxP9KLycKurK+gt4=",
+    "EmbeddedIdP": {
+        "Enabled": true,
+        "Issuer": "https://netbird.yggdrasil.cfd/oauth2",
+        "DashboardRedirectURIs": [
+            "https://netbird.yggdrasil.cfd/nb-auth",
+            "https://netbird.yggdrasil.cfd/nb-silent-auth"
+        ]
+    }
+}

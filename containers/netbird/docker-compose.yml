@@ -1,0 +1,94 @@
+name: netbird-stack
+# NetBird components expect their default users (CAP_NET_ADMIN for routing, etc.); do not set `user:` here.
+
+services:
+  dashboard:
+    image: netbirdio/dashboard:latest
+    container_name: netbird-dashboard
+    restart: unless-stopped
+    networks: [netbird]
+    ports:
+      - "127.0.0.1:31932:80"
+    env_file:
+      - ./dashboard.env
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500m"
+        max-file: "2"
+
+  signal:
+    image: netbirdio/signal:latest
+    container_name: netbird-signal
+    restart: unless-stopped
+    networks: [netbird]
+    ports:
+      - "127.0.0.1:38083:80"
+      - "127.0.0.1:31100:10000"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500m"
+        max-file: "2"
+
+  relay:
+    image: netbirdio/relay:latest
+    container_name: netbird-relay
+    restart: unless-stopped
+    networks: [netbird]
+    ports:
+      - "127.0.0.1:38084:80"
+      # STUN uses a well-known UDP port; changing the host side can break peers unless you reconfigure clients/firewall.
+      - "3478:3478/udp"
+    env_file:
+      - ./relay.env
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500m"
+        max-file: "2"
+
+  management:
+    image: netbirdio/management:latest
+    container_name: netbird-management
+    restart: unless-stopped
+    networks: [netbird]
+    ports:
+      - "127.0.0.1:31801:80"
+    volumes:
+      - ${HOME}/storage/homelab/homelab-conf/netbird/management:/var/lib/netbird
+      - ./management.json:/etc/netbird/management.json
+    command:
+      [
+        "--port",
+        "80",
+        "--log-file",
+        "console",
+        "--log-level",
+        "info",
+        "--disable-anonymous-metrics=false",
+        "--single-account-mode-domain=netbird.selfhosted",
+        "--dns-domain=netbird.selfhosted",
+        "--idp-sign-key-refresh-enabled",
+      ]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500m"
+        max-file: "2"
+
+  routing:
+    image: netbirdio/netbird:latest
+    container_name: netbird-routing
+    restart: unless-stopped
+    networks: [netbird]
+    cap_add:
+      - NET_ADMIN
+    env_file:
+      - ./routing.env
+    volumes:
+      - ${HOME}/storage/homelab/homelab-conf/netbird/client:/var/lib/netbird
+
+networks:
+  netbird:
+    driver: bridge

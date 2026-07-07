@@ -1,0 +1,19 @@
+name: ai-stack
+
+services:
+  portainer:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: webui
+    restart: unless-stopped
+    user: "1000:1000"
+    ports:
+      - "31813:8080"
+    volumes:
+      - ${HOME}/storage/homelab/homelab-conf/webui/data:/data
+    environment:
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - DATA_DIR=/data
+    env_file:
+      - ./webui.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

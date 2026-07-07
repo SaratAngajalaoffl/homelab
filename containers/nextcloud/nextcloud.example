@@ -1,0 +1,7 @@
+ADMIN_PASSWORD=
+TZ=UTC
+NEXTCLOUD_ADMIN_USER=admin
+NEXTCLOUD_TRUSTED_DOMAINS=localhost 127.0.0.1 cloud.yggdrasil.cfd
+OVERWRITEPROTOCOL=https
+OVERWRITECLIURL=https://cloud.yggdrasil.cfd
+OVERWRITEHOST=cloud.yggdrasil.cfd

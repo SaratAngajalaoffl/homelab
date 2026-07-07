@@ -1,0 +1,20 @@
+name: portainer-stack
+
+services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "31900:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOME}/storage/homelab/homelab-conf/portainer/data:/data
+    environment:
+      - TZ=UTC
+    networks:
+      - portainer_net
+
+networks:
+  portainer_net:
+    driver: bridge

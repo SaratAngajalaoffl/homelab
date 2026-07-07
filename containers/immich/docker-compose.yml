@@ -1,0 +1,64 @@
+name: immich-stack
+# Images define their own users (postgres, redis, etc.); do not override `user:` here.
+
+services:
+  immich-server:
+    container_name: immich_server
+    image: ghcr.io/immich-app/immich-server:v2.6.3
+    volumes:
+      - ${HOME}/storage/homelab/homelab-data/immich/server-data:/data
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - ./immich.env
+    ports:
+      - "32283:2283"
+    depends_on:
+      - redis
+      - database
+    restart: always
+    healthcheck:
+      disable: false
+    networks:
+      - immich_net
+
+  immich-machine-learning:
+    container_name: immich_machine_learning
+    image: ghcr.io/immich-app/immich-machine-learning:v2.6.3
+    volumes:
+      - ${HOME}/storage/homelab/homelab-data/immich/model-cache:/cache
+    env_file:
+      - ./immich.env
+    restart: always
+    healthcheck:
+      disable: false
+    networks:
+      - immich_net
+
+  redis:
+    container_name: immich_redis
+    image: docker.io/valkey/valkey:9@sha256:546304417feac0874c3dd576e0952c6bb8f06bb4093ea0c9ca303c73cf458f63
+    healthcheck:
+      test: redis-cli ping || exit 1
+    restart: always
+    networks:
+      - immich_net
+
+  database:
+    container_name: immich_postgres
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
+    env_file:
+      - ./immich.env
+    environment:
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    volumes:
+      - ${HOME}/storage/homelab/homelab-data/immich/postgres:/var/lib/postgresql/data
+    shm_size: 128mb
+    restart: always
+    healthcheck:
+      disable: false
+    networks:
+      - immich_net
+
+networks:
+  immich_net:
+    driver: bridge

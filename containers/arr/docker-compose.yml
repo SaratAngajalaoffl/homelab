@@ -1,0 +1,166 @@
+name: arr-stack
+# LinuxServer *arr apps use PUID/PGID; gluetun VPN stays root-capable.
+
+services:
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    env_file:
+      - ./arr.env
+    # Expose web UIs of apps that share this network namespace (host ports are high/odd vs defaults).
+    ports:
+      - 31888:8888/tcp # HTTP proxy
+      - 31838:8388/tcp # Shadowsocks
+      - 31838:8388/udp # Shadowsocks
+      # Sonarr
+      - "31989:8989"
+      # Radarr
+      - "31978:7878"
+      # Lidarr
+      - "31868:8686"
+      # Bazarr
+      - "31677:6767"
+      # Prowlarr
+      - "31969:9696"
+      # HomeArr
+      - "31757:7575"
+      # qBittorrent Web UI
+      - "41830:8080"
+      # qBittorrent inbound torrent traffic
+      - "31681:6881"
+      - "31681:6881/udp"
+      # FlareSolverr
+      - "31819:8191"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ${HOME}/storage/homelab/homelab-conf/gluetun:/gluetun
+    networks:
+      - arr_net
+    healthcheck:
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  dockerproxy:
+    image: ghcr.io/tecnativa/docker-socket-proxy:latest
+    container_name: dockerproxy
+    network_mode: host
+    environment:
+      - CONTAINERS=1
+      - IMAGES=1
+      - INFO=1
+      - STATS=1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+      - WEBUI_PORT=8080
+      - TORRENTING_PORT=6881
+    volumes:
+      - ${HOME}/storage/homelab/homelab-conf/qbittorrent/config:/config
+      - ${HOME}/storage/homelab/homelab-data/arr/torrents:/data/torrents
+
+  flaresolverr:
+    # DockerHub mirror flaresolverr/flaresolverr:latest
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_HTML=${LOG_HTML:-false}
+      - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}
+      - TZ=Europe/London
+    restart: unless-stopped
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+    volumes:
+      - ${HOME}/storage/homelab/homelab-conf/sonarr/config:/config
+      - ${HOME}/storage/homelab/homelab-data/arr:/data
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+    volumes:
+      - ${HOME}/storage/homelab/homelab-conf/radarr/config:/config
+      - ${HOME}/storage/homelab/homelab-data/arr:/data
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+    volumes:
+      - ${HOME}/storage/homelab/homelab-conf/prowlarr/config:/config
+
+  homearr:
+    image: ghcr.io/homarr-labs/homarr:latest
+    container_name: homearr
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+      - PUID=1000
+      - PGID=1000
+      - DOCKER_HOST=tcp://172.17.0.1:2375
+    env_file:
+      - ./arr.env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOME}/storage/homelab/homelab-conf/homearr/config:/config
+      - ${HOME}/storage/homelab/homelab-conf/homearr/appdata:/appdata
+
+networks:
+  arr_net:
+    driver: bridge
