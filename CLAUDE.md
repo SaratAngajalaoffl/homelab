@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Detached homelab repo at `~/homelab` for self-hosted Docker infrastructure on an Arch Linux desktop. It is separate from `~/dotfiles-arch` (desktop dotfiles) and replaces the legacy `containers/` directory that lived in the flat `~/dotfiles` repo.
 
-The repo owns compose files, env templates (`*.example`), monitoring provisioning, and stack lifecycle scripts. It does **not** own runtime data (`~/storage/homelab/`) or secrets (`*.env`).
+The repo owns compose files, env templates (`*.example`), and stack lifecycle scripts. It does **not** own runtime data (`~/storage/homelab/`) or secrets (`*.env`).
 
 ## Key commands
 
@@ -14,7 +14,7 @@ The repo owns compose files, env templates (`*.example`), monitoring provisionin
 # Start all stacks (or one stack by name)
 cd ~/homelab/containers
 ./up-all-stacks.sh
-./up-all-stacks.sh monitoring
+./up-all-stacks.sh arr
 
 # Stop all stacks (or one)
 ./down-all-stacks.sh
@@ -38,7 +38,7 @@ docker compose -f ~/homelab/containers/arr/docker-compose.yml up -d --pull alway
 - **Follow the storage convention:** config/state → `${HOME}/storage/homelab/homelab-conf/<service>/`; user content → `${HOME}/storage/homelab/homelab-data/<service>/`.
 - **One stack per directory** under `containers/`. Do not merge unrelated services into a single compose file.
 - **Prefer `user: "1000:1000"`** on LinuxServer.io and similar images when bind-mounting under `$HOME`. Some images define their own users (Nextcloud `www-data`, Immich postgres) — read compose comments before overriding.
-- **No host port publishing for HTTP services.** `nginx-proxy-manager` is the only public listener (`:80`/`:443`) — host nginx has been retired. Every HTTP-facing container joins the external `edge` docker network (see `up-all-stacks.sh`, which creates it if missing) and NPM reaches it by container name and container-internal port; do not add a `ports:` entry for a service's web UI. `31xxx` host ports only remain for things that genuinely can't go through nginx: UDP protocols (jellyfin autodiscovery), VPN-tunnel utility ports (gluetun's HTTP proxy/Shadowsocks/torrent-inbound), and LAN-only debug access that was never fronted by nginx (Prometheus/Loki). Document any new one of those in compose comments. See `containers/nginx-proxy-manager/CONTEXT.md` + `.setup`.
+- **No host port publishing for HTTP services.** `nginx-proxy-manager` is the only public listener (`:80`/`:443`) — host nginx has been retired. Every HTTP-facing container joins the external `edge` docker network (see `up-all-stacks.sh`, which creates it if missing) and NPM reaches it by container name and container-internal port; do not add a `ports:` entry for a service's web UI. `31xxx` host ports only remain for things that genuinely can't go through nginx: UDP protocols (jellyfin autodiscovery) and VPN-tunnel utility ports (gluetun's HTTP proxy/Shadowsocks/torrent-inbound). Document any new one of those in compose comments. See `containers/nginx-proxy-manager/CONTEXT.md` + `.setup`.
 
 ## Architecture
 
@@ -58,7 +58,6 @@ docker compose -f ~/homelab/containers/arr/docker-compose.yml up -d --pull alway
     ├── arr/               # Has CONTEXT.md + .setup
     ├── immich/
     ├── jellyfin/
-    ├── monitoring/
     ├── nextcloud/
     ├── portainer/
     └── webui/
@@ -68,7 +67,7 @@ docker compose -f ~/homelab/containers/arr/docker-compose.yml up -d --pull alway
 
 | Tree | Holds | Example |
 |------|-------|---------|
-| `homelab-conf/` | Config, DBs, app state | `.../sonarr/config`, `.../monitoring/grafana` |
+| `homelab-conf/` | Config, DBs, app state | `.../sonarr/config`, `.../nextcloud/app` |
 | `homelab-data/` | Bulk user content | `.../arr/torrents`, `.../immich/server-data` |
 
 ### Secrets bootstrap
@@ -84,7 +83,6 @@ For machine migration or disaster recovery, the human operator uses `scripts/env
 | Stack | Notes |
 |-------|-------|
 | `arr` | Gluetun VPN sidecar; torrent apps share its network namespace. See `containers/arr/CONTEXT.md`. |
-| `monitoring` | Grafana provisioning in-repo; persistent data under homelab-conf. |
 | `jellyfin` | Reads media from `homelab-data/arr/media`; Seerr for requests. |
 | `immich` | Pinned image versions; postgres + redis + ML container. |
 | `nextcloud` | Bind mounts need `www-data` ownership — see compose header comment. |

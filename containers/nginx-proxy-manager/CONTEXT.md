@@ -9,7 +9,6 @@
 **What still publishes a host port, and why** — a handful of things aren't HTTP and can't be routed by any nginx, proxy manager or otherwise:
 - `arr`'s gluetun VPN-tunnel utility ports (HTTP proxy `31888`, Shadowsocks `31838`) and qBittorrent's inbound torrent port (`31681`)
 - `jellyfin`'s LAN autodiscovery broadcast (`31759/udp`)
-- `monitoring`'s Prometheus (`31909`) and Loki (`31103`) — these were never fronted by nginx even in the host-nginx era (no subdomain existed for them); left as direct LAN-only debug access. Ask if you want these behind NPM too.
 
 Everything else lost its `ports:` entry and gained `edge` in its `networks:` list.
 

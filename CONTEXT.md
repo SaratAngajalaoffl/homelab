@@ -2,7 +2,7 @@
 
 ## Glossary
 
-**Stack** — a self-contained Docker Compose project in `containers/<name>/`, with its own `docker-compose.yml`, env template, and optional `.setup` instructions. Examples: `arr`, `monitoring`.
+**Stack** — a self-contained Docker Compose project in `containers/<name>/`, with its own `docker-compose.yml`, env template, and optional `.setup` instructions. Examples: `arr`, `immich`.
 
 **Compose file** — the `docker-compose.yml` inside a stack directory. Each stack is brought up independently via `docker compose -f <stack>/docker-compose.yml`.
 
@@ -36,4 +36,3 @@
 
 **`edge` network** — external docker bridge network joined by nginx-proxy-manager and every HTTP-facing container across every stack. Auto-created by `up-all-stacks.sh` if missing.
 
-**Provisioning** — committed config baked into images at startup, e.g. Grafana datasources/dashboards under `containers/monitoring/grafana/provisioning/`. Distinct from runtime state in homelab-conf.

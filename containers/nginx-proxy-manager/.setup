@@ -57,8 +57,6 @@ noted.
 
 | Domain | Forward host:port | Notes |
 |---|---|---|
-| `app.yggdrasil.cfd` | `grafana:3000` | Grafana (alias) |
-| `grafana.yggdrasil.cfd` | `grafana:3000` | |
 | `jellyfin.yggdrasil.cfd` | `jellyfin:8096` | Websockets |
 | `portainer.yggdrasil.cfd` | `portainer:9000` | |
 | `cloud.yggdrasil.cfd` | `nextcloud:80` | Advanced tab: `client_max_body_size 0;` |

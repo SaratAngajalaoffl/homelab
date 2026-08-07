@@ -66,7 +66,6 @@ Optional first argument: search root directory (defaults to the git repo root).
 | arr | `containers/arr/` | *arr suite + qBittorrent + FlareSolverr behind Gluetun VPN |
 | immich | `containers/immich/` | Photo backup (Immich + Postgres + Redis) |
 | jellyfin | `containers/jellyfin/` | Media server + Seerr request manager |
-| monitoring | `containers/monitoring/` | Prometheus, Grafana, Loki, Promtail, cAdvisor, node-exporter |
 | nextcloud | `containers/nextcloud/` | File sync and collaboration |
 | nginx-proxy-manager | `containers/nginx-proxy-manager/` | Reverse proxy; sole public listener, automatic per-host SSL |
 | portainer | `containers/portainer/` | Docker management UI |
@@ -77,7 +76,7 @@ Optional first argument: search root directory (defaults to the git repo root).
 | Path | Purpose |
 |------|---------|
 | `~/homelab/` | This repo — compose files, config templates, scripts |
-| `~/storage/homelab/homelab-conf/` | App config and state (Grafana DB, *arr configs, etc.) |
+| `~/storage/homelab/homelab-conf/` | App config and state (Nextcloud config, *arr configs, etc.) |
 | `~/storage/homelab/homelab-data/` | User content (torrents, media, photos, Nextcloud files) |
 
 ## Agent docs

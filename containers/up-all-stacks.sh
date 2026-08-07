@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 usage() {
   printf 'Usage: %s [STACK]\n' "$(basename "$0")" >&2
   printf '  With no arguments: bring up every directory under %s that has a docker-compose.yml.\n' "$ROOT_DIR" >&2
-  printf '  With STACK: bring up only that subdirectory (e.g. monitoring, arr, jellyfin).\n' >&2
+  printf '  With STACK: bring up only that subdirectory (e.g. arr, jellyfin, immich).\n' >&2
 }
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
