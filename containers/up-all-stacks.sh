@@ -14,6 +14,14 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
+# Shared external network: nginx-proxy-manager and every HTTP-facing stack
+# join this to reach each other by container name. Stacks reference it as
+# `external: true`, so it must exist before any of them start.
+if ! docker network inspect edge >/dev/null 2>&1; then
+  echo "==> Creating shared docker network: edge"
+  docker network create edge
+fi
+
 run_stack() {
   local stack_dir="$1"
   local compose_file="$stack_dir/docker-compose.yml"

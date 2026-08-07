@@ -2,7 +2,7 @@
 
 ## Glossary
 
-**Stack** — a self-contained Docker Compose project in `containers/<name>/`, with its own `docker-compose.yml`, env template, and optional `.setup` instructions. Examples: `arr`, `netbird`, `monitoring`.
+**Stack** — a self-contained Docker Compose project in `containers/<name>/`, with its own `docker-compose.yml`, env template, and optional `.setup` instructions. Examples: `arr`, `monitoring`.
 
 **Compose file** — the `docker-compose.yml` inside a stack directory. Each stack is brought up independently via `docker compose -f <stack>/docker-compose.yml`.
 
@@ -30,10 +30,10 @@
 
 **PUID/PGID** — LinuxServer.io images in the arr stack run as `1000:1000` to match a typical desktop user's ownership on bind mounts under `$HOME`.
 
-**NetBird stack** — self-hosted NetBird control plane: dashboard (UI), signal (WebRTC signaling), relay (TURN/relay), management (API + embedded IdP), and routing (client peer with `NET_ADMIN`). Internal services bind to `127.0.0.1`; STUN uses well-known port `3478/udp`.
+**Host port** — the left side of a `ports:` mapping in compose. Reserved for things nginx-proxy-manager can't front: UDP protocols, VPN-tunnel utility ports, and LAN-only debug access. Everything else reaches nginx-proxy-manager over the `edge` network instead.
 
-**Host port** — the left side of a `ports:` mapping in compose. Most stacks currently expose services on `31xxx`-range ports on the host. This is ad-hoc today; Nginx Proxy Manager is planned to front services instead of manual port forwarding.
+**Nginx Proxy Manager** — `containers/nginx-proxy-manager/`. Sole public listener on the host (`:80`/`:443`); terminates TLS with automatic per-host Let's Encrypt certs and routes to backends by container name over the external `edge` docker network. See its `CONTEXT.md` + `.setup`.
 
-**Nginx Proxy Manager (planned)** — reverse proxy stack to be added. Will terminate TLS and route by hostname, replacing the need to forward individual host ports.
+**`edge` network** — external docker bridge network joined by nginx-proxy-manager and every HTTP-facing container across every stack. Auto-created by `up-all-stacks.sh` if missing.
 
 **Provisioning** — committed config baked into images at startup, e.g. Grafana datasources/dashboards under `containers/monitoring/grafana/provisioning/`. Distinct from runtime state in homelab-conf.

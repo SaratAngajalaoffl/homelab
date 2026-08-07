@@ -1,4 +1,0 @@
-NB_SETUP_KEY=
-NB_HOSTNAME='routing-peer'
-NB_MANAGEMENT_URL=https://netbird.yggdrasil.cfd
-NB_ALLOW_SERVER_SSH=true

@@ -33,10 +33,9 @@ services:
     volumes:
       - ${HOME}/storage/homelab/homelab-conf/monitoring/grafana:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
-    ports:
-      - 31800:3000/tcp
     networks:
       - monitoring_net
+      - edge
     depends_on:
       - prometheus
       - loki
@@ -110,3 +109,5 @@ services:
 networks:
   monitoring_net:
     driver: bridge
+  edge:
+    external: true

@@ -67,8 +67,8 @@ Optional first argument: search root directory (defaults to the git repo root).
 | immich | `containers/immich/` | Photo backup (Immich + Postgres + Redis) |
 | jellyfin | `containers/jellyfin/` | Media server + Seerr request manager |
 | monitoring | `containers/monitoring/` | Prometheus, Grafana, Loki, Promtail, cAdvisor, node-exporter |
-| netbird | `containers/netbird/` | Self-hosted NetBird mesh VPN (dashboard, signal, relay, management, routing peer) |
 | nextcloud | `containers/nextcloud/` | File sync and collaboration |
+| nginx-proxy-manager | `containers/nginx-proxy-manager/` | Reverse proxy; sole public listener, automatic per-host SSL |
 | portainer | `containers/portainer/` | Docker management UI |
 | webui | `containers/webui/` | Open WebUI (connects to Ollama on the host) |
 

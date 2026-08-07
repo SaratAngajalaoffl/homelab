@@ -34,11 +34,11 @@ docker compose -f ~/homelab/containers/arr/docker-compose.yml up -d --pull alway
 
 - **Never read, write, or commit `*.env` files** during normal agent work. They are gitignored and contain secrets. Exception: only run `scripts/env/copy_env.sh` or `scripts/env/apply_env.sh` when the user explicitly asks for secrets export/restore.
 - **May update `*.example` files** when adding new required env vars. Keep placeholders empty or clearly marked.
-- **May create or update `.setup` files** for manual bootstrap instructions (see arr and netbird).
+- **May create or update `.setup` files** for manual bootstrap instructions (see arr).
 - **Follow the storage convention:** config/state → `${HOME}/storage/homelab/homelab-conf/<service>/`; user content → `${HOME}/storage/homelab/homelab-data/<service>/`.
 - **One stack per directory** under `containers/`. Do not merge unrelated services into a single compose file.
 - **Prefer `user: "1000:1000"`** on LinuxServer.io and similar images when bind-mounting under `$HOME`. Some images define their own users (Nextcloud `www-data`, Immich postgres) — read compose comments before overriding.
-- **Do not rigidly apply a port formula.** Host ports are ad-hoc `31xxx` mappings today. Document new ports in compose comments. Nginx Proxy Manager is planned next to front services by hostname.
+- **No host port publishing for HTTP services.** `nginx-proxy-manager` is the only public listener (`:80`/`:443`) — host nginx has been retired. Every HTTP-facing container joins the external `edge` docker network (see `up-all-stacks.sh`, which creates it if missing) and NPM reaches it by container name and container-internal port; do not add a `ports:` entry for a service's web UI. `31xxx` host ports only remain for things that genuinely can't go through nginx: UDP protocols (jellyfin autodiscovery), VPN-tunnel utility ports (gluetun's HTTP proxy/Shadowsocks/torrent-inbound), and LAN-only debug access that was never fronted by nginx (Prometheus/Loki). Document any new one of those in compose comments. See `containers/nginx-proxy-manager/CONTEXT.md` + `.setup`.
 
 ## Architecture
 
@@ -56,7 +56,6 @@ docker compose -f ~/homelab/containers/arr/docker-compose.yml up -d --pull alway
     ├── up-all-stacks.sh
     ├── down-all-stacks.sh
     ├── arr/               # Has CONTEXT.md + .setup
-    ├── netbird/           # Has CONTEXT.md + .setup
     ├── immich/
     ├── jellyfin/
     ├── monitoring/
@@ -85,17 +84,13 @@ For machine migration or disaster recovery, the human operator uses `scripts/env
 | Stack | Notes |
 |-------|-------|
 | `arr` | Gluetun VPN sidecar; torrent apps share its network namespace. See `containers/arr/CONTEXT.md`. |
-| `netbird` | Self-hosted control plane; internal ports on localhost. See `containers/netbird/CONTEXT.md`. |
 | `monitoring` | Grafana provisioning in-repo; persistent data under homelab-conf. |
 | `jellyfin` | Reads media from `homelab-data/arr/media`; Seerr for requests. |
 | `immich` | Pinned image versions; postgres + redis + ML container. |
 | `nextcloud` | Bind mounts need `www-data` ownership — see compose header comment. |
 | `portainer` | Docker socket mount for container management. |
 | `webui` | Open WebUI; `OLLAMA_BASE_URL` points to host Ollama via `host.docker.internal`. |
-
-### Planned
-
-**Nginx Proxy Manager** — reverse proxy stack to be added. Will terminate TLS and route by hostname, reducing reliance on per-service host port mappings.
+| `nginx-proxy-manager` | GUI reverse proxy; sole public listener on `:80`/`:443`, terminates TLS with automatic per-host Let's Encrypt (HTTP-01) certs. Routes to backends by container name over the external `edge` network — no host nginx, no `host.docker.internal` hop. See `containers/nginx-proxy-manager/CONTEXT.md` + `.setup`. |
 
 ## ADRs
 

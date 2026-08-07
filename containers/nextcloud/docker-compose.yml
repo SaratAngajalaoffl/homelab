@@ -8,8 +8,6 @@ services:
     image: nextcloud:latest
     container_name: nextcloud
     restart: unless-stopped
-    ports:
-      - "31404:80"
     env_file:
       - ./nextcloud.env
     volumes:
@@ -17,6 +15,7 @@ services:
       - ${HOME}/storage/homelab/homelab-data/nextcloud/data:/var/www/html/data
     networks:
       - nextcloud_net
+      - edge
     logging:
       driver: "json-file"
       options:
@@ -26,3 +25,5 @@ services:
 networks:
   nextcloud_net:
     driver: bridge
+  edge:
+    external: true

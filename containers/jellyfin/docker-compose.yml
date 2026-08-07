@@ -5,7 +5,8 @@ services:
     image: jellyfin/jellyfin
     container_name: jellyfin
     ports:
-      - 31896:8096/tcp
+      # LAN client autodiscovery broadcast (UDP) — not HTTP, nginx-proxy-manager
+      # can't route it, so this stays a direct host publish.
       - 31759:7359/udp
     volumes:
       - ${HOME}/storage/homelab/homelab-conf/jellyfin/config:/config
@@ -18,6 +19,9 @@ services:
     # Optional - may be necessary for docker healthcheck to pass if running in host network mode
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - jellyfin_net
+      - edge
 
   seerr:
     image: ghcr.io/seerr-team/seerr:latest
@@ -27,8 +31,6 @@ services:
       - LOG_LEVEL=debug
       - TZ=Asia/Kolkata
       - PORT=5055 #optional
-    ports:
-      - 31505:5055
     volumes:
       - ${HOME}/storage/homelab/homelab-conf/seerr/config:/app/config
     healthcheck:
@@ -38,3 +40,12 @@ services:
       interval: 15s
       retries: 3
     restart: unless-stopped
+    networks:
+      - jellyfin_net
+      - edge
+
+networks:
+  jellyfin_net:
+    driver: bridge
+  edge:
+    external: true

@@ -12,35 +12,24 @@ services:
       - /dev/net/tun:/dev/net/tun
     env_file:
       - ./arr.env
-    # Expose web UIs of apps that share this network namespace (host ports are high/odd vs defaults).
+    # VPN-tunnel utility ports stay published on the host — they aren't web
+    # UIs and nginx-proxy-manager can't route them. Every app's web UI
+    # (Sonarr, Radarr, Prowlarr, HomeArr, qBittorrent, FlareSolverr) shares
+    # this network namespace, so NPM reaches them at gluetun:<container-port>
+    # over the `edge` network instead of a published host port.
     ports:
       - 31888:8888/tcp # HTTP proxy
       - 31838:8388/tcp # Shadowsocks
       - 31838:8388/udp # Shadowsocks
-      # Sonarr
-      - "31989:8989"
-      # Radarr
-      - "31978:7878"
-      # Lidarr
-      - "31868:8686"
-      # Bazarr
-      - "31677:6767"
-      # Prowlarr
-      - "31969:9696"
-      # HomeArr
-      - "31757:7575"
-      # qBittorrent Web UI
-      - "41830:8080"
       # qBittorrent inbound torrent traffic
       - "31681:6881"
       - "31681:6881/udp"
-      # FlareSolverr
-      - "31819:8191"
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ${HOME}/storage/homelab/homelab-conf/gluetun:/gluetun
     networks:
       - arr_net
+      - edge
     healthcheck:
       test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
       interval: 30s
@@ -164,3 +153,5 @@ services:
 networks:
   arr_net:
     driver: bridge
+  edge:
+    external: true
