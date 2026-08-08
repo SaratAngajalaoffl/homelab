@@ -1,0 +1,42 @@
+services:
+  # UI dashboard
+  dashboard:
+    image: netbirdio/dashboard:latest
+    container_name: netbird-dashboard
+    restart: unless-stopped
+    networks: [netbird, edge]
+    env_file:
+      - ./dashboard.env
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500m"
+        max-file: "2"
+
+  # Combined server (Management + Signal + Relay + STUN)
+  netbird-server:
+    image: netbirdio/netbird-server:latest
+    container_name: netbird-server
+    restart: unless-stopped
+    networks: [netbird, edge]
+    ports:
+      # STUN is raw UDP; NPM only proxies HTTP(S)/gRPC/websocket over TCP,
+      # so this can't go through it (same carve-out as arr's gluetun ports).
+      - '3478:3478/udp'
+    volumes:
+      - netbird_data:/var/lib/netbird
+      - ./config.yaml:/etc/netbird/config.yaml
+    command: ["--config", "/etc/netbird/config.yaml"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500m"
+        max-file: "2"
+
+volumes:
+  netbird_data:
+
+networks:
+  netbird:
+  edge:
+    external: true

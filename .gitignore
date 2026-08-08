@@ -1,1 +1,2 @@
 *.env
+containers/netbird/config.yaml

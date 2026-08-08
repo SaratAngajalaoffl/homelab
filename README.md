@@ -66,6 +66,7 @@ Optional first argument: search root directory (defaults to the git repo root).
 | arr | `containers/arr/` | *arr suite + qBittorrent + FlareSolverr behind Gluetun VPN |
 | immich | `containers/immich/` | Photo backup (Immich + Postgres + Redis) |
 | jellyfin | `containers/jellyfin/` | Media server + Seerr request manager |
+| netbird | `containers/netbird/` | Self-hosted VPN control plane for SSH access without a public port |
 | nextcloud | `containers/nextcloud/` | File sync and collaboration |
 | nginx-proxy-manager | `containers/nginx-proxy-manager/` | Reverse proxy; sole public listener, automatic per-host SSL |
 | portainer | `containers/portainer/` | Docker management UI |

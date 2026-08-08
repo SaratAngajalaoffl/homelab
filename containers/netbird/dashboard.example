@@ -1,0 +1,25 @@
+# Copy to dashboard.env after running getting-started.sh, or just use the
+# dashboard.env it generates directly — this template exists only to
+# document the shape, per the repo's *.example convention.
+#
+# Values below mirror what getting-started.sh's render_dashboard_env()
+# produces for domain netbird.yggdrasil.cfd behind an existing reverse
+# proxy (NPM). AUTH_CLIENT_SECRET is intentionally blank: the embedded
+# Dex IdP dashboard client is a public OIDC client (PKCE), no secret.
+
+# Endpoints
+NETBIRD_MGMT_API_ENDPOINT=https://netbird.yggdrasil.cfd
+NETBIRD_MGMT_GRPC_API_ENDPOINT=https://netbird.yggdrasil.cfd
+# OIDC - using embedded IdP
+AUTH_AUDIENCE=netbird-dashboard
+AUTH_CLIENT_ID=netbird-dashboard
+AUTH_CLIENT_SECRET=
+AUTH_AUTHORITY=https://netbird.yggdrasil.cfd/oauth2
+USE_AUTH0=false
+AUTH_SUPPORTED_SCOPES=openid profile email groups
+AUTH_REDIRECT_URI=/nb-auth
+AUTH_SILENT_REDIRECT_URI=/nb-silent-auth
+# SSL
+NGINX_SSL_PORT=443
+# Letsencrypt — NPM terminates TLS, not this container
+LETSENCRYPT_DOMAIN=none

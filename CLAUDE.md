@@ -58,6 +58,7 @@ docker compose -f ~/homelab/containers/arr/docker-compose.yml up -d --pull alway
     ├── arr/               # Has CONTEXT.md + .setup
     ├── immich/
     ├── jellyfin/
+    ├── netbird/           # Has CONTEXT.md + .setup
     ├── nextcloud/
     ├── portainer/
     └── webui/
@@ -85,6 +86,7 @@ For machine migration or disaster recovery, the human operator uses `scripts/env
 | `arr` | Gluetun VPN sidecar; torrent apps share its network namespace. See `containers/arr/CONTEXT.md`. |
 | `jellyfin` | Reads media from `homelab-data/arr/media`; Seerr for requests. |
 | `immich` | Pinned image versions; postgres + redis + ML container. |
+| `netbird` | Trimmed self-hosted VPN control plane (`netbird-server` + `dashboard` only) so a laptop can reach this host's SSH port without exposing it to the internet. See `containers/netbird/CONTEXT.md` + `.setup`. |
 | `nextcloud` | Bind mounts need `www-data` ownership — see compose header comment. |
 | `portainer` | Docker socket mount for container management. |
 | `webui` | Open WebUI; `OLLAMA_BASE_URL` points to host Ollama via `host.docker.internal`. |
