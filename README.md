@@ -64,6 +64,7 @@ Optional first argument: search root directory (defaults to the git repo root).
 | Stack | Directory | Description |
 |-------|-----------|-------------|
 | arr | `containers/arr/` | *arr suite + qBittorrent + FlareSolverr behind Gluetun VPN |
+| atuin | `containers/atuin/` | Self-hosted shell history sync server (Atuin + Postgres) |
 | immich | `containers/immich/` | Photo backup (Immich + Postgres + Redis) |
 | jellyfin | `containers/jellyfin/` | Media server + Seerr request manager |
 | netbird | `containers/netbird/` | Self-hosted VPN control plane for SSH access without a public port |

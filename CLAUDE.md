@@ -84,6 +84,7 @@ For machine migration or disaster recovery, the human operator uses `scripts/env
 | Stack | Notes |
 |-------|-------|
 | `arr` | Gluetun VPN sidecar; torrent apps share its network namespace. See `containers/arr/CONTEXT.md`. |
+| `atuin` | Self-hosted Atuin shell history sync server + Postgres, so history merges between the desktop and a MacBook. E2E encrypted client-side. See `containers/atuin/CONTEXT.md` + `.setup`. |
 | `jellyfin` | Reads media from `homelab-data/arr/media`; Seerr for requests. |
 | `immich` | Pinned image versions; postgres + redis + ML container. |
 | `netbird` | Trimmed self-hosted VPN control plane (`netbird-server` + `dashboard` only) so a laptop can reach this host's SSH port without exposing it to the internet. See `containers/netbird/CONTEXT.md` + `.setup`. |

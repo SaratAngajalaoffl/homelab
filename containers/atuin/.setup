@@ -1,0 +1,124 @@
+# atuin stack — manual setup
+
+## Bootstrap env file
+
+```bash
+cp atuin.example atuin.env
+```
+
+Generate a password and fill in both `POSTGRES_PASSWORD` and the matching
+slot in `ATUIN_DB_URI` (`postgres://atuin:<password>@atuin-db/atuin`):
+
+```bash
+openssl rand -hex 24
+```
+
+## First run
+
+```bash
+mkdir -p ~/storage/homelab/homelab-conf/atuin/{config,db}
+cd ~/homelab/containers
+./up-all-stacks.sh atuin
+```
+
+Check both containers come up healthy:
+
+```bash
+docker compose -f atuin/docker-compose.yml ps
+docker compose -f atuin/docker-compose.yml logs atuin
+```
+
+## Reverse proxy (nginx-proxy-manager)
+
+Add a proxy host in the NPM admin UI (see `containers/nginx-proxy-manager/.setup`
+for how to reach it):
+
+- Domain: `atuin.yggdrasil.cfd`
+- Forward to: `atuin_server:8888`
+- Scheme: `http`
+- Request a new SSL certificate (HTTP-01, same as every other proxy host)
+
+No advanced nginx config needed — atuin's sync protocol is plain HTTPS/JSON,
+unlike netbird's gRPC/websocket carve-out.
+
+## Register the desktop, then the laptop
+
+`ATUIN_OPEN_REGISTRATION=true` in `atuin.env` must be set while doing this
+(it's the default in the example template).
+
+On the Arch desktop (first machine — this creates the account and generates
+the encryption key):
+
+```bash
+# if not already installed
+curl --proto '=https' --tlsv1.2 -sSf https://setup.atuin.sh | bash
+
+atuin login   # or: atuin account create, depending on installed version
+```
+
+When prompted, point it at the self-hosted server — either answer the
+prompt or set in `~/.config/atuin/config.toml` beforehand:
+
+```toml
+sync_address = "https://atuin.yggdrasil.cfd"
+```
+
+Register/login:
+
+```bash
+atuin register -u <username> -e <email>
+```
+
+Fetch the encryption key — you'll need it on the MacBook too:
+
+```bash
+atuin key
+```
+
+**Save this key somewhere safe (password manager). Anyone with it plus your
+login can decrypt your shell history.**
+
+Push existing local history up:
+
+```bash
+atuin sync -f
+```
+
+## MacBook (second machine)
+
+Install atuin (Homebrew is simplest on macOS):
+
+```bash
+brew install atuin
+```
+
+Add the same `sync_address` to `~/.config/atuin/config.toml`, then log in
+with the *same* username and the key from the desktop:
+
+```bash
+atuin login -u <username> -k "<key from atuin key above>"
+atuin sync -f
+```
+
+Shell history merges bidirectionally from here — enable atuin's shell
+integration (`atuin init zsh`/`bash` in your rc file) on both machines if
+not already done from a previous local-only setup.
+
+## Close registration
+
+Once both machines are logged in:
+
+```bash
+# edit atuin.env: ATUIN_OPEN_REGISTRATION=false
+docker compose -f atuin/docker-compose.yml up -d
+```
+
+The server is publicly reachable at `atuin.yggdrasil.cfd`; closing
+registration stops randoms from creating accounts on it. Existing logins
+are unaffected.
+
+## Adding a third machine later
+
+Install the client, set `sync_address`, then `atuin login -u <username> -k
+"<the same key>"` — no need to reopen registration for additional machines
+under the same account.
