@@ -89,6 +89,7 @@ For machine migration or disaster recovery, the human operator uses `scripts/env
 | `immich` | Pinned image versions; postgres + redis + ML container. |
 | `netbird` | Trimmed self-hosted VPN control plane (`netbird-server` + `dashboard` only) so a laptop can reach this host's SSH port without exposing it to the internet. See `containers/netbird/CONTEXT.md` + `.setup`. |
 | `nextcloud` | Bind mounts need `www-data` ownership — see compose header comment. |
+| `openclaw` | Self-hosted [OpenClaw](https://openclaw.ai) personal AI assistant/agent gateway (email, calendar, chat-app channels). Higher blast radius than most stacks — its gateway token grants agent control. See `containers/openclaw/CONTEXT.md` + `.setup`. |
 | `portainer` | Docker socket mount for container management. |
 | `webui` | Open WebUI; `OLLAMA_BASE_URL` points to host Ollama via `host.docker.internal`. |
 | `nginx-proxy-manager` | GUI reverse proxy; sole public listener on `:80`/`:443`, terminates TLS with automatic per-host Let's Encrypt (HTTP-01) certs. Routes to backends by container name over the external `edge` network — no host nginx, no `host.docker.internal` hop. See `containers/nginx-proxy-manager/CONTEXT.md` + `.setup`. |
