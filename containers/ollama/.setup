@@ -1,0 +1,147 @@
+# ollama stack — manual setup
+
+Migrates the host's native `ollama.service` into Docker with GPU
+passthrough, then exposes it publicly behind an API key via
+nginx-proxy-manager.
+
+## 0. Prerequisites (already done on this host)
+
+```bash
+sudo pacman -S nvidia-container-toolkit
+sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+```
+
+Verify CDI passthrough works before going further:
+
+```bash
+docker run --rm --device nvidia.com/gpu=all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi -L
+```
+
+Should print your GPU. If it instead errors `AMD CDI spec not found`,
+you're hitting the same multi-vendor CDI probe issue this compose file
+works around — see CONTEXT.md. Don't try `docker run --gpus all` here, it
+hits the same error; the CDI `--device nvidia.com/gpu=all` form is what
+actually works on this host's Docker version.
+
+## 1. Seed model data from the host install
+
+The host's native install has ~23GB already pulled
+(`/usr/share/ollama/.ollama`, root-only 700 perms) — copy it in instead of
+re-pulling over the network:
+
+```bash
+mkdir -p ~/storage/homelab/homelab-conf/ollama/data
+sudo rsync -a --info=progress2 /usr/share/ollama/.ollama/ ~/storage/homelab/homelab-conf/ollama/data/
+sudo chown -R "$(id -u):$(id -g)" ~/storage/homelab/homelab-conf/ollama/data
+```
+
+(The container runs as root itself, so ownership doesn't strictly matter
+for the container to read it — this chown is just so the directory is
+manageable from your own user afterward.)
+
+## 2. Bring up the stack
+
+```bash
+cd ~/homelab/containers
+./up-all-stacks.sh ollama
+```
+
+Verify it's using the GPU, not falling back to CPU:
+
+```bash
+docker logs ollama 2>&1 | grep -i -E "gpu|cuda|vram"
+docker exec ollama ollama list      # should show qwen3.6:35b etc. from the copied data
+docker exec ollama ollama ps        # after a test prompt, confirms it's running on GPU not CPU
+```
+
+Quick end-to-end test from the host, over the edge network:
+
+```bash
+docker run --rm --network edge curlimages/curl -s http://ollama:11434/api/generate \
+  -d '{"model": "qwen3.6:35b", "prompt": "say hi in 5 words", "stream": false}'
+```
+
+## 3. Point webui at it
+
+Already changed in `containers/webui/docker-compose.yml`
+(`OLLAMA_BASE_URL=http://ollama:11434`). Recreate it so the change takes
+effect:
+
+```bash
+./up-all-stacks.sh webui
+```
+
+Open `chat.yggdrasil.cfd` and confirm models list and a chat completes.
+
+## 4. Public endpoint + API key (nginx-proxy-manager)
+
+Reach the NPM admin UI (see `containers/nginx-proxy-manager/.setup` for
+the SSH tunnel). Generate a key first:
+
+```bash
+openssl rand -hex 32
+```
+
+**Proxy Hosts → Add Proxy Host**:
+
+- Domain: `infer.yggdrasil.cfd`
+- Scheme: `http`, Forward host/port: `ollama:11434`
+- **SSL tab**: request a new Let's Encrypt certificate, force SSL, HTTP/2
+- **Advanced tab** — paste this, with your generated key in place of
+  `REPLACE_WITH_YOUR_KEY`:
+
+```nginx
+if ($http_authorization != "Bearer REPLACE_WITH_YOUR_KEY") {
+    return 401;
+}
+proxy_read_timeout 600s;
+proxy_buffering off;
+```
+
+(`proxy_buffering off` matters here — Ollama streams tokens as they're
+generated, and NPM's default buffering would hold the whole response
+until it's complete before forwarding it, defeating streaming clients.)
+
+Save the key itself somewhere durable (password manager) — it lives only
+in NPM's own config now (`homelab-conf/nginx-proxy-manager/data`, not
+tracked in git), so it isn't recoverable from this repo if lost, only
+rotatable (edit the Advanced tab snippet, distribute the new key to
+whatever calls this endpoint).
+
+Verify from outside the LAN (e.g. phone on cellular data, or `curl` from
+another machine):
+
+```bash
+# without a key — expect 401
+curl -i https://infer.yggdrasil.cfd/api/tags
+
+# with the key — expect 200 + model list
+curl -s https://infer.yggdrasil.cfd/api/tags \
+  -H "Authorization: Bearer REPLACE_WITH_YOUR_KEY"
+```
+
+Any OpenAI/Ollama-compatible client pointed at
+`https://infer.yggdrasil.cfd` with that bearer token works the same way
+(Ollama's `/v1/chat/completions` OpenAI-compatible endpoint included).
+
+## 5. Retire the host's native ollama.service
+
+Only once steps 2–4 are verified working:
+
+```bash
+sudo systemctl disable --now ollama.service
+```
+
+Confirm the GPU is now only claimed by the container:
+
+```bash
+nvidia-smi   # should show the `ollama` container's process, not a bare `ollama` binary
+```
+
+The host's `/usr/share/ollama/.ollama` data is untouched (only copied
+from, not moved) — safe to leave as a rollback path, or delete later once
+you're confident in the Docker version:
+
+```bash
+sudo rm -rf /usr/share/ollama/.ollama
+```

@@ -9,12 +9,12 @@ services:
     volumes:
       - ${HOME}/storage/homelab/homelab-conf/webui/data:/data
     environment:
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # Points at the ollama-stack container over the edge network now,
+      # not host.docker.internal — see containers/ollama/CONTEXT.md.
+      - OLLAMA_BASE_URL=http://ollama:11434
       - DATA_DIR=/data
     env_file:
       - ./webui.env
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - webui_net
       - edge

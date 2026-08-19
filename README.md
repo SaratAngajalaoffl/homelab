@@ -70,8 +70,9 @@ Optional first argument: search root directory (defaults to the git repo root).
 | netbird | `containers/netbird/` | Self-hosted VPN control plane for SSH access without a public port |
 | nextcloud | `containers/nextcloud/` | File sync and collaboration |
 | nginx-proxy-manager | `containers/nginx-proxy-manager/` | Reverse proxy; sole public listener, automatic per-host SSL |
+| ollama | `containers/ollama/` | Dockerized Ollama server with GPU passthrough; public endpoint is API-key-gated |
 | portainer | `containers/portainer/` | Docker management UI |
-| webui | `containers/webui/` | Open WebUI (connects to Ollama on the host) |
+| webui | `containers/webui/` | Open WebUI (connects to the ollama stack) |
 
 ## Storage layout
 
