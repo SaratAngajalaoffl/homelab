@@ -1,0 +1,108 @@
+# hermes stack — manual setup
+
+## Bootstrap env file
+
+```bash
+cp hermes.example hermes.env
+chmod 600 hermes.env   # keep secrets out of git blame world-readable
+```
+
+Open `hermes.env` and fill in:
+- **`HERMES_DASHBOARD_PASSWORD`** — pick anything for basic auth (the username is already a placeholder).
+- **`HERMES_API_SERVER_KEY`** — replace the placeholder with an actual secret:
+  ```bash
+  openssl rand -hex 32
+  ```
+
+## First run
+
+```bash
+mkdir -p ~/storage/homelab/homelab-conf/hermes/state
+cd ~/homelab/containers
+./up-all-stacks.sh hermes
+```
+
+Check it comes up healthy:
+
+```bash
+docker compose -f hermes/docker-compose.yml ps
+docker compose -f hermes/docker-compose.yml logs -f hermes-gateway
+```
+
+The container will run the **interactive setup wizard** on first invocation.
+It prompts for your model provider API keys and writes them into
+`homelab-conf/hermes/state/.env` (the volume-mounted config). Example:
+
+```bash
+docker exec hermes_gateway /opt/hermes/.venv/bin/hermes setup
+```
+
+Set at least one key you also use in `openclaw.env` so both agents can access
+your preferred model provider (e.g. `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`,
+or similar).
+
+## Reverse proxy (nginx-proxy-manager)
+
+Add two proxy hosts in the NPM admin UI (see
+`containers/nginx-proxy-manager/.setup` for how to reach it):
+
+### API server (`hermes.yggdrasil.cfd`)
+
+- Domain: `hermes.yggdrasil.cfd`
+- Forward to: `hermes_gateway:8642`
+- Scheme: `http`
+- **Websockets Support: on** (long-polling also works for some clients)
+- Advanced nginx snippet — require API key auth:
+  ```
+  # Require Bearer token for every request
+  if ($http_authorization !~ "^Bearer ") {
+      return 401;
+  }
+  # Validate the token from openclaw.env (both share the same stack)
+  set $valid_token no;
+  if ($http_authorization ~* "Bearer (.*)") {
+      set $token $1;
+  }
+  ```
+- Request a new SSL certificate (HTTP-01, same as every other proxy host)
+
+### Dashboard (`hermes-dashboard.yggdrasil.cfd` or same domain under /dashboard)
+
+- Domain: `hermes-dashboard.yggdrasil.cfd` (or use an NPM per-host path under the main domain)
+- Forward to: `hermes_gateway:9119`
+- Scheme: `http`
+- **Websockets Support: on**
+- Basic auth is already enforced by env vars — no extra nginx snippet needed.
+
+## CLI usage (optional profiles / one-off tasks)
+
+```bash
+# List profiles, create sessions, check gateway status:
+docker exec hermes_gateway hermes status
+
+# Start a chat session in the default profile:
+docker exec -it hermes_gateway hermes
+
+# Create a second named profile (separate SOUL/memory/skills):
+docker exec hermes_gateway hermes profile create work
+
+docker exec hermes_gateway hermes -p work gateway start
+```
+
+## Sanity check
+
+```bash
+# API server endpoint (inside the container):
+docker exec hermes_gateway wget -qO- http://127.0.0.1:8642/healthz
+
+# Dashboard auth page (outside, via loopback after NPM is set up):
+curl -sI https://hermes.yggdrasil.cfd/v1/models | head -5
+```
+
+## Model shared with OpenClaw?
+
+Hermes reads API keys from `/opt/data/.env` inside the container — this is
+the file produced by `hermes setup`, _not_ the compose env_file. It is safe to
+set the same model provider keys in both `openclaw.env` and `hermes/env` since
+they live on the host as separate files. The compose-level `HERMES_API_SERVER_KEY`
+is a service-specific token; keep it distinct from both.

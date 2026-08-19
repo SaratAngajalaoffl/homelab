@@ -1,0 +1,42 @@
+# hermes-gateway runs as the image's built-in `hermes` user —
+# matches the container-side HOME at /opt/data.
+
+name: hermes-stack
+
+services:
+  hermes-gateway:
+    container_name: hermes_gateway
+    image: nousresearch/hermes-agent:latest
+    restart: unless-stopped
+    env_file:
+      - ./hermes.env
+    environment:
+      # Only dashboard flag stays in the environment section because it
+      # is always-on and requires no secret. Everything else is read from
+      # hermes.env via env_file: (the earlier ${VAR} aliases were broken —
+      # docker-compose does not interpolate across env_files at parse time).
+      HERMES_DASHBOARD: "1"
+    volumes:
+      # Single /opt/data volume is the state of truth: config, keys, sessions,
+      # memories, skills, cron jobs, hooks, logs — all persist across upgrades.
+      - ${HOME}/storage/homelab/homelab-conf/hermes/state:/opt/data
+    cap_drop:
+      - NET_RAW
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
+    extra_hosts:
+      # Lets local-model providers (LM Studio/Ollama on the host) be reached
+      # at http://host.docker.internal:<port> from inside the container.
+      - "host.docker.internal:host-gateway"
+    command:
+      [
+        "gateway",
+        "run",
+      ]
+    networks:
+      - edge
+
+networks:
+  edge:
+    external: true

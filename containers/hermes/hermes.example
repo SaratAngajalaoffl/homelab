@@ -1,0 +1,30 @@
+# Copy to hermes.env, then set at least one model provider key (see .setup).
+#   cp hermes.example hermes.env
+
+# NOTE: all variable names below match the upstream Hermes Agent env var
+# names exactly.  Do NOT use shortened aliases — docker-compose does not
+# interpolate ${} across env_files so the aliasing pattern was broken.
+#
+# ---------------------------------------------------------------------------
+# Dashboard auth (mandatory for non-loopback binds — see Docker docs)
+# ---------------------------------------------------------------------------
+# Zero-infra homelab option. Set to any username/password you choose;
+HERMES_DASHBOARD_BASIC_AUTH_USERNAME=your-dashboard-user
+HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=
+
+# --------------------------------------------------------------------------
+# OpenAI-compatible API server
+# --------------------------------------------------------------------------
+# Enable the HTTP API + bind it to all interfaces so NPM can reach it over
+# the edge network (hermes_gateway:8642).
+API_SERVER_ENABLED=true
+API_SERVER_HOST=0.0.0.0
+
+# Bearer token for OpenAI-compatible API calls to :8642.
+# Minimum 8 characters — generate with:
+#   openssl rand -hex 32
+API_SERVER_KEY=
+
+# CORS origins (compose default is fine, but include it in env_file so all
+# settings live in one place).
+API_SERVER_CORS_ORIGINS=*
