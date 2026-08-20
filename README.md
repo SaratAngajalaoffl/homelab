@@ -38,7 +38,7 @@ Secret values live in `*.env` files under `containers/`. Committed `*.example` f
 
 ### Export — `scripts/env/copy_env.sh`
 
-Walks the repo (or a directory you pass as the first argument), finds every `*.env`, merges assignments into one flat JSON object (later files override duplicate keys), and copies that JSON to the clipboard.
+Walks the repo (or a directory you pass as the first argument), finds every `*.env`, and copies a JSON object to the clipboard nested by file path relative to the search root (e.g. `"containers/arr/arr.env": { "KEY": "value" }`). Same-named keys in different files never collide, since each file gets its own section.
 
 Store the JSON in a secrets vault (e.g. Bitwarden note) for restore on a new machine.
 
@@ -49,7 +49,7 @@ Store the JSON in a secrets vault (e.g. Bitwarden note) for restore on a new mac
 
 ### Restore — `scripts/env/apply_env.sh`
 
-Reads flat JSON from stdin, or from the clipboard if stdin is empty. Finds every `*.example` under the search root and writes a sibling `.env` (e.g. `arr.example` → `arr.env`), filling keys that exist in the JSON.
+Reads the nested JSON from stdin, or from the clipboard if stdin is empty. Finds every `*.example` under the search root and writes a sibling `.env` (e.g. `arr.example` → `arr.env`), filling keys from that file's own section. Warns (without failing) about `*.example` files with no matching section, JSON sections with no matching file, and keys that don't match any line in the template. Also still accepts the old flat `{ "KEY": "value" }` shape from a pre-existing vault export, applying it to every `*.example` file like the legacy behavior — with a warning that duplicate keys across files will collide in that mode.
 
 ```bash
 ./scripts/env/apply_env.sh </path/to/export.json

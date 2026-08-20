@@ -10,11 +10,11 @@
 
 **Setup manifest** — an optional `.setup` file in a stack directory with plain-text instructions for secrets or manual bootstrap steps that cannot be committed (e.g. VPN keys, API tokens). Read after copying the env template.
 
-**Env export** — `scripts/env/copy_env.sh`. Discovers all `*.env` files under the repo (or a given search root), merges key/value assignments into one flat JSON object (later files win on duplicate keys), and copies the JSON to the system clipboard. Used to back up secrets to a vault.
+**Env export** — `scripts/env/copy_env.sh`. Discovers all `*.env` files under the repo (or a given search root), and copies one JSON object to the system clipboard nested by file path (relative to the search root) → `{key: value}`. Used to back up secrets to a vault. See **Nested env JSON** below.
 
-**Env restore** — `scripts/env/apply_env.sh`. Reads flat JSON from stdin or the clipboard, finds every `*.example` file under the search root, and writes a sibling `*.env` by filling keys present in the JSON. Preserves comments and key order from the example template.
+**Env restore** — `scripts/env/apply_env.sh`. Reads the nested JSON from stdin or the clipboard, finds every `*.example` file under the search root, and writes a sibling `*.env` by filling keys from that file's own JSON section. Preserves comments and key order from the example template. Also accepts the old flat JSON shape (see **Nested env JSON** below) for restoring a pre-existing vault export.
 
-**Flat env JSON** — a single JSON object `{ "KEY": "value", ... }` with no nesting. The export/restore scripts use this format so all stack secrets can live in one vault note.
+**Nested env JSON** — the export/restore JSON shape: `{ "containers/arr/arr.env": { "KEY": "value" }, ... }`, keyed by file path relative to the search root. Replaced the earlier flat `{ "KEY": "value" }` shape, which silently merged same-named keys from different `*.env` files into one value. `apply_env.sh` still reads the old flat shape for backward compatibility with existing vault exports, but `copy_env.sh` only ever writes the nested shape now.
 
 **homelab-conf** — host path `${HOME}/storage/homelab/homelab-conf/`. Holds app configuration, databases, and small persistent state. Bind-mounted into containers. Never committed to git.
 

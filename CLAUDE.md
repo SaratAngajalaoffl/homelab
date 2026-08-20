@@ -23,7 +23,7 @@ cd ~/homelab/containers
 # Bring up a single stack manually
 docker compose -f ~/homelab/containers/arr/docker-compose.yml up -d --pull always --build
 
-# Export all *.env values to clipboard as flat JSON (human secrets workflow)
+# Export all *.env values to clipboard as JSON nested by file path (human secrets workflow)
 ./scripts/env/copy_env.sh
 
 # Restore *.env files from JSON (stdin or clipboard)
@@ -77,7 +77,7 @@ docker compose -f ~/homelab/containers/arr/docker-compose.yml up -d --pull alway
 2. Fill in values on the host.
 3. Read `<stack>/.setup` if present for non-obvious steps.
 
-For machine migration or disaster recovery, the human operator uses `scripts/env/copy_env.sh` (export all `*.env` to flat JSON via clipboard) and `scripts/env/apply_env.sh` (restore from JSON into paired `.env` files). Store exported JSON in a vault (e.g. Bitwarden), not in git.
+For machine migration or disaster recovery, the human operator uses `scripts/env/copy_env.sh` (export all `*.env` to JSON via clipboard, nested by file path so same-named keys in different files never collide) and `scripts/env/apply_env.sh` (restore from that JSON into paired `.env` files; also reads old flat-JSON exports for back-compat). Store exported JSON in a vault (e.g. Bitwarden), not in git.
 
 ### Stacks overview
 

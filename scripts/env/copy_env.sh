@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Discover all *.env files under SEARCH_ROOT (default: git repo root), merge assignments
-# (later files override earlier keys on duplicate), emit one JSON object, copy to clipboard.
+# Discover all *.env files under SEARCH_ROOT (default: git repo root), emit one JSON object
+# nested by file path (relative to SEARCH_ROOT) -> {key: value}, copy to clipboard.
+# Nesting by path means same-named keys in different files never collide or get merged.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -126,29 +127,21 @@ def parse_env_text(text: str) -> dict[str, str]:
     return out
 
 
-merged: dict[str, str] = {}
+nested: dict[str, dict[str, str]] = {}
 for p in paths:
     try:
         data = p.read_text(encoding="utf-8")
     except OSError as e:
         print(f"error: cannot read {p}: {e}", file=sys.stderr)
         sys.exit(1)
-    chunk = parse_env_text(data)
-    overlap = set(merged) & set(chunk)
-    if overlap:
-        rel = p.relative_to(root)
-        keys = ", ".join(sorted(overlap))
-        print(
-            f"warning: duplicate keys (later file wins): {keys} — in {rel}",
-            file=sys.stderr,
-        )
-    merged.update(chunk)
+    rel = str(p.relative_to(root))
+    nested[rel] = parse_env_text(data)
 
-print(json.dumps(merged, ensure_ascii=False, indent=2))
+print(json.dumps(nested, ensure_ascii=False, indent=2))
 PY
 )"
 
 COUNT="$(cat "${COUNT_FILE}")"
 
 printf '%s\n' "${OUT}" | copy_to_clipboard
-printf 'Copied JSON for %s env file(s) to the clipboard (%s).\n' "${COUNT}" "${SEARCH_ROOT}"
+printf 'Copied nested JSON (keyed by file path) for %s env file(s) to the clipboard (%s).\n' "${COUNT}" "${SEARCH_ROOT}"
