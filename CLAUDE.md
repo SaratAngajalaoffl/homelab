@@ -93,6 +93,7 @@ For machine migration or disaster recovery, the human operator uses `scripts/env
 | `openclaw` | Self-hosted [OpenClaw](https://openclaw.ai) personal AI assistant/agent gateway (email, calendar, chat-app channels). Higher blast radius than most stacks — its gateway token grants agent control. See `containers/openclaw/CONTEXT.md` + `.setup`. |
 | `portainer` | Docker socket mount for container management. |
 | `webui` | Open WebUI; `OLLAMA_BASE_URL` points to the `ollama` stack container over the `edge` network. |
+| `yggdrasil` | Self-hosted deploy of the user's own [yggdrasil-hq/yggdrasil-core](https://github.com/yggdrasil-hq/yggdrasil-core) (AI-orchestrated dev platform, pre-alpha). GHCR images, not built from source. Includes a bundled k3s cluster the Orchestrator targets (ADR 003 upstream) — new territory for this otherwise pure-Compose homelab. Project-deployment ingress (`*.apps.<domain>`) is not exposed yet. See `containers/yggdrasil/CONTEXT.md` + `.setup`. |
 | `nginx-proxy-manager` | GUI reverse proxy; sole public listener on `:80`/`:443`, terminates TLS with automatic per-host Let's Encrypt (HTTP-01) certs. Routes to backends by container name over the external `edge` network — no host nginx, no `host.docker.internal` hop. See `containers/nginx-proxy-manager/CONTEXT.md` + `.setup`. |
 
 ## ADRs

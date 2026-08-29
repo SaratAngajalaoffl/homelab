@@ -1,0 +1,143 @@
+# yggdrasil stack — manual setup
+
+## 0. Make the GHCR packages public
+
+Every image below currently returns "denied" on an anonymous pull (confirmed
+via `docker manifest inspect`, 2026-08-25):
+
+- `ghcr.io/yggdrasil-hq/yggdrasil-web`
+- `ghcr.io/yggdrasil-hq/yggdrasil-api`
+- `ghcr.io/yggdrasil-hq/yggdrasil-orchestrator`
+- `ghcr.io/yggdrasil-hq/yggdrasil-landing`
+- `ghcr.io/yggdrasil-hq/yggdrasil-docusaurus`
+- `ghcr.io/yggdrasil-hq/yggdrasil-agent-images`
+
+For each: GitHub → the owning repo → **Packages** (right sidebar) → the
+package → **Package settings** → **Change visibility** → Public. (`gh` CLI
+listing needs a `read:packages`-scoped token; the UI path above doesn't.)
+
+Until you do this, `docker compose pull` in step 2 will fail — log in with a
+PAT that has `read:packages` as a stopgap:
+
+```bash
+echo "$GHCR_PAT" | docker login ghcr.io -u <your-github-username> --password-stdin
+```
+
+## 1. Bootstrap env file
+
+```bash
+cd ~/homelab/containers/yggdrasil
+cp yggdrasil.example yggdrasil.env
+```
+
+Fill in `yggdrasil.env`. It's a flat file passed via `env_file:` to every
+service — docker-compose does **not** cross-substitute `${VAR}` between an
+`env_file:` target and the compose YAML, so a few values are intentionally
+duplicated under two names (called out inline in the file):
+- `POSTGRES_PASSWORD` and `DATABASE_URL`'s embedded password must match.
+- `MINIO_ROOT_USER`/`_PASSWORD` and `S3_ACCESS_KEY`/`S3_SECRET_KEY` must match
+  (api reads the `S3_*` names).
+- `API_PUBLIC_URL` and `NEXT_PUBLIC_API_BASE_URL` must match.
+
+Set:
+- `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`/`S3_SECRET_KEY` — any strong
+  values (same value in both places per above).
+- `SECRETS_ENCRYPTION_KEY` — `openssl rand -base64 32`
+- `INTERNAL_API_TOKEN`, `SESSION_SECRET` — `openssl rand -hex 32` each
+- `APP_PUBLIC_URL`/`API_PUBLIC_URL`/`DOCS_SITE_URL`/`NEXT_PUBLIC_API_BASE_URL`
+  — the subdomains you'll create NPM proxy hosts for (suggested:
+  `app.yggdrasil.cfd`, `api.yggdrasil.cfd`, `docs.yggdrasil.cfd`)
+- `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` — create a GitHub OAuth App
+  (GitHub → Settings → Developer settings → OAuth Apps → New OAuth App).
+  Homepage URL: `APP_PUBLIC_URL`. Authorization callback URL:
+  `<API_PUBLIC_URL>/auth/github/callback`. You said you'd handle this
+  yourself — do it before first boot, or `GET /auth/github` returns 503.
+
+## 2. Storage dirs + first run
+
+```bash
+mkdir -p ~/storage/homelab/homelab-conf/yggdrasil/{postgres,k3s,kube}
+mkdir -p ~/storage/homelab/homelab-data/yggdrasil/minio
+cd ~/homelab/containers
+./up-all-stacks.sh yggdrasil
+```
+
+k3s takes 30-60s to become healthy on first boot (pulling its own bundled
+component images). Watch it:
+
+```bash
+docker compose -f yggdrasil/docker-compose.yml ps
+docker compose -f yggdrasil/docker-compose.yml logs -f k3s
+```
+
+## 3. cert-manager + ClusterIssuer (one-time, manual kubectl step)
+
+k3s doesn't bundle cert-manager. Once `k3s-kubeconfig` has run (check `docker
+compose -f yggdrasil/docker-compose.yml ps` shows it `Exited (0)`):
+
+```bash
+export KUBECONFIG=~/storage/homelab/homelab-conf/yggdrasil/kube/config
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
+kubectl wait --for=condition=Available --timeout=120s \
+  deployment/cert-manager deployment/cert-manager-webhook deployment/cert-manager-cainjector \
+  -n cert-manager
+
+cat <<'EOF' | kubectl apply -f -
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-issuer
+spec:
+  selfSigned: {}
+EOF
+```
+
+This matches `INGRESS_CLASS_NAME=traefik` / `CERT_ISSUER_NAME=selfsigned-issuer`
+already set in the compose file's `orchestrator` service.
+
+## 4. Reverse proxy (nginx-proxy-manager)
+
+Add three proxy hosts in the NPM admin UI (see
+`containers/nginx-proxy-manager/.setup` for how to reach it) — plain `http`
+scheme to each, HTTP-01 SSL cert like every other stack:
+
+| Domain | Forward to |
+|--------|------------|
+| `app.yggdrasil.cfd` | `web:3000` |
+| `api.yggdrasil.cfd` | `api:3000` |
+| `docs.yggdrasil.cfd` | `docusaurus:3000` |
+
+`landing` isn't proxied above — add a fourth host for it (e.g. the bare
+`yggdrasil.cfd` or `www.yggdrasil.cfd`) if you want the marketing site
+public too; forward to `landing:3000`.
+
+`orchestrator` isn't proxied either — nothing in the web UI calls it
+directly from the browser today (the API talks to it over `yggdrasil_net`).
+Add a proxy host for `orchestrator:8080` only if/when that changes.
+
+## 5. Verify sign-in
+
+Open `https://app.yggdrasil.cfd`, sign in with GitHub. If `GET /auth/github`
+502s or 503s, check `docker compose -f yggdrasil/docker-compose.yml logs api`
+— almost always a missing/wrong `GITHUB_CLIENT_ID`/`_SECRET` or callback URL
+mismatch.
+
+## Open follow-ups (not done by this setup)
+
+- **GitHub App** (repo access — branches/PRs) — `yggdrasil.env` has the
+  `GITHUB_APP_*` vars commented out. Sign-in works without it; the
+  Orchestrator can't touch any repo until you create one (GitHub → Settings
+  → Developer settings → GitHub Apps → New GitHub App) and uncomment+fill
+  those vars.
+- **Agent-images** — `SPEC_GRILL_IMAGE`/`FEATURE_BUILD_IMAGE`/`TEST_RUN_IMAGE`
+  are commented out in `yggdrasil.env` until `yggdrasil-agent-images`
+  actually publishes images. Once it does (and you've made that package
+  public per step 0), uncomment and set them, and re-run
+  `./up-all-stacks.sh yggdrasil` (orchestrator picks up the new env on
+  restart).
+- **Reaching a deployed project from outside this host** — not wired up.
+  k3s's bundled Traefik (where `<project-slug>.apps.${APPS_BASE_DOMAIN}`
+  actually lives) isn't published anywhere. Decide between a wildcard NPM
+  proxy host (needs DNS-01 wildcard cert, unlike every other host here) or
+  a raw host-port carve-out before relying on "Open deployment" links in the
+  web UI. See CONTEXT.md.

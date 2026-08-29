@@ -1,0 +1,209 @@
+# Self-hosted deploy of yggdrasil-hq/yggdrasil-core, pulling prebuilt GHCR
+# images (control-plane services only — customer projects the Orchestrator
+# builds/runs live on the bundled k3s cluster below, not in this compose
+# project). See CONTEXT.md and .setup.
+#
+# NOTE: composed values (DATABASE_URL, S3_ACCESS_KEY, public URLs, etc.) are
+# set as literal full values directly in yggdrasil.env, not built here with
+# ${VAR} interpolation — docker-compose only substitutes ${VAR} in this file
+# from a file literally named .env (or the real shell environment), never
+# from an env_file: target like yggdrasil.env. See CONTEXT.md.
+
+name: yggdrasil-stack
+
+services:
+  landing:
+    image: ghcr.io/yggdrasil-hq/yggdrasil-landing:latest
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+    networks:
+      - yggdrasil_net
+      - edge
+
+  web:
+    image: ghcr.io/yggdrasil-hq/yggdrasil-web:latest
+    restart: unless-stopped
+    env_file:
+      - ./yggdrasil.env
+    environment:
+      PORT: "3000"
+      NEXT_PUBLIC_BASE_PATH: ""
+      API_INTERNAL_URL: http://api:3000
+    depends_on:
+      - api
+    networks:
+      - yggdrasil_net
+      - edge
+
+  docusaurus:
+    image: ghcr.io/yggdrasil-hq/yggdrasil-docusaurus:latest
+    restart: unless-stopped
+    env_file:
+      - ./yggdrasil.env
+    environment:
+      PORT: "3000"
+      DOCS_BASE_URL: /
+    networks:
+      - yggdrasil_net
+      - edge
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - ./yggdrasil.env
+    volumes:
+      - ${HOME}/storage/homelab/homelab-conf/yggdrasil/postgres:/var/lib/postgresql/data
+    healthcheck:
+      # $$ (not $) escapes compose's own ${VAR} parsing so this reaches the
+      # container's shell literally, which then expands it from the real
+      # POSTGRES_USER env var the postgres image sets from env_file above.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - yggdrasil_net
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    env_file:
+      - ./yggdrasil.env
+    volumes:
+      - ${HOME}/storage/homelab/homelab-data/yggdrasil/minio:/data
+    networks:
+      - yggdrasil_net
+
+  api:
+    image: ghcr.io/yggdrasil-hq/yggdrasil-api:latest
+    restart: unless-stopped
+    env_file:
+      - ./yggdrasil.env
+    environment:
+      PORT: "3000"
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: us-east-1
+      S3_FORCE_PATH_STYLE: "true"
+      ORCHESTRATOR_URL: http://orchestrator:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    networks:
+      - yggdrasil_net
+      - edge
+
+  orchestrator:
+    image: ghcr.io/yggdrasil-hq/yggdrasil-orchestrator:latest
+    restart: unless-stopped
+    env_file:
+      - ./yggdrasil.env
+    environment:
+      PORT: "8080"
+      API_INTERNAL_URL: http://api:3000
+      # Bundled k3s below uses k3s's own default ingress controller and a
+      # selfSigned ClusterIssuer (see .setup) — swap these for
+      # ingress-nginx + a real ACME issuer only if orchestrator is later
+      # pointed at a different, real-domain cluster.
+      INGRESS_CLASS_NAME: traefik
+      CERT_ISSUER_NAME: selfsigned-issuer
+      KUBECONFIG: /kube/config
+    volumes:
+      - orchestrator_kubeconfig:/kube:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+      k3s-kubeconfig:
+        condition: service_completed_successfully
+    networks:
+      - yggdrasil_net
+      - edge
+
+  # Disposable single-node Kubernetes cluster the Orchestrator targets (ADR
+  # 003 — it drives a k8s API, not a Docker socket). Bundles Traefik +
+  # local-path storage. State lives in the k3s_data volume.
+  k3s:
+    image: rancher/k3s:v1.32.5-k3s1
+    privileged: true
+    # Fixed hostname so k3s's node name is stable across container
+    # recreation (`up --build`) — otherwise a new random hostname registers
+    # as a second, permanently-stale node next to the old one in k3s_data.
+    hostname: k3s
+    restart: unless-stopped
+    tmpfs:
+      - /run
+      - /var/run
+    environment:
+      K3S_KUBECONFIG_OUTPUT: /output/kubeconfig.yaml
+      K3S_KUBECONFIG_MODE: "644"
+    # --tls-san lets the server cert validate when reached as "k3s" (this
+    # service's Docker DNS name) — the default cert only covers
+    # localhost/127.0.0.1.
+    command: server --tls-san=k3s --write-kubeconfig-mode=644
+    volumes:
+      - ${HOME}/storage/homelab/homelab-conf/yggdrasil/k3s:/var/lib/rancher/k3s
+      - k3s_kubeconfig:/output
+    ports:
+      # kubectl/Helm access from the host only (cert-manager bootstrap, ad
+      # hoc debugging) — not an HTTP service, so it doesn't go through NPM;
+      # same carve-out category as arr/netbird's non-HTTP utility ports, but
+      # loopback-only like nginx-proxy-manager's own admin UI since this
+      # grants full cluster-admin.
+      - "127.0.0.1:31643:6443"
+      # NOTE: k3s's bundled Traefik (project deployments —
+      # <slug>.apps.<APPS_BASE_DOMAIN>, ADR 003 §15) is intentionally NOT
+      # published here yet. Upstream's own docs mark project-hosting ingress
+      # as still-draft; wire up a real host-port + NPM (or DNS/cert) story
+      # for it before relying on "Open deployment" links. See .setup.
+    healthcheck:
+      test: ["CMD", "kubectl", "get", "--raw=/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    networks:
+      - yggdrasil_net
+
+  # One-shot: k3s writes its kubeconfig with `server: https://127.0.0.1:6443`,
+  # which only resolves from inside the k3s container itself. Rewrites that
+  # to the Docker DNS name "k3s" for the orchestrator, and separately to
+  # localhost:31643 for the host's own kubectl (cert-manager bootstrap).
+  k3s-kubeconfig:
+    image: alpine:3.20
+    depends_on:
+      k3s:
+        condition: service_healthy
+    volumes:
+      - k3s_kubeconfig:/input:ro
+      - orchestrator_kubeconfig:/output
+      - ${HOME}/storage/homelab/homelab-conf/yggdrasil/kube:/host-output
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -eu
+        until [ -s /input/kubeconfig.yaml ]; do sleep 1; done
+        sed 's#server: https://127.0.0.1:6443#server: https://k3s:6443#' \
+          /input/kubeconfig.yaml > /output/config
+        sed 's#server: https://127.0.0.1:6443#server: https://localhost:31643#' \
+          /input/kubeconfig.yaml > /host-output/config
+        chmod 644 /output/config /host-output/config
+    restart: "no"
+    networks:
+      - yggdrasil_net
+
+volumes:
+  k3s_kubeconfig:
+  orchestrator_kubeconfig:
+
+networks:
+  yggdrasil_net:
+    driver: bridge
+  edge:
+    external: true
