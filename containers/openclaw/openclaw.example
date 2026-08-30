@@ -32,6 +32,9 @@ ANTHROPIC_API_KEY=
 # -----------------------------------------------------------------------------
 # Tools + voice/media (optional)
 # -----------------------------------------------------------------------------
+# Web search defaults to the self-hosted searxng-stack (SEARXNG_BASE_URL is
+# pinned in docker-compose.yml, not here — see containers/searxng/CONTEXT.md).
+# Setting BRAVE_API_KEY overrides that with Brave's paid/cloud provider instead.
 # BRAVE_API_KEY=...
 # PERPLEXITY_API_KEY=pplx-...
 # FIRECRAWL_API_KEY=...

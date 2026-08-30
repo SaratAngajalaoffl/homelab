@@ -85,6 +85,7 @@ For machine migration or disaster recovery, the human operator uses `scripts/env
 |-------|-------|
 | `arr` | Gluetun VPN sidecar; torrent apps share its network namespace. See `containers/arr/CONTEXT.md`. |
 | `atuin` | Self-hosted Atuin shell history sync server + Postgres, so history merges between the desktop and a MacBook. E2E encrypted client-side. See `containers/atuin/CONTEXT.md` + `.setup`. |
+| `hermes` | Self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent) personal AI assistant; one container multiplexes an OpenAI-compatible API server and a web dashboard. See `containers/hermes/CONTEXT.md`. |
 | `jellyfin` | Reads media from `homelab-data/arr/media`; Seerr for requests. |
 | `immich` | Pinned image versions; postgres + redis + ML container. |
 | `netbird` | Trimmed self-hosted VPN control plane (`netbird-server` + `dashboard` only) so a laptop can reach this host's SSH port without exposing it to the internet. See `containers/netbird/CONTEXT.md` + `.setup`. |
@@ -92,7 +93,8 @@ For machine migration or disaster recovery, the human operator uses `scripts/env
 | `ollama` | Dockerized Ollama server with GPU passthrough (CDI, not `deploy.reservations.devices` — see CONTEXT.md). No auth of its own; the public NPM proxy host enforces an API key via an Advanced-tab nginx snippet. Replaces the old host-native `ollama.service`. See `containers/ollama/CONTEXT.md` + `.setup`. |
 | `openclaw` | Self-hosted [OpenClaw](https://openclaw.ai) personal AI assistant/agent gateway (email, calendar, chat-app channels). Higher blast radius than most stacks — its gateway token grants agent control. See `containers/openclaw/CONTEXT.md` + `.setup`. |
 | `portainer` | Docker socket mount for container management. |
-| `webui` | Open WebUI; `OLLAMA_BASE_URL` points to the `ollama` stack container over the `edge` network. |
+| `searxng` | Self-hosted SearXNG metasearch engine; shared, key-free web-search backend for `webui`, `openclaw`, and `hermes`. No auth of its own internally; the public NPM proxy host gates it with an Access List (Basic Auth) instead of an API key, since it's a browsable UI. See `containers/searxng/CONTEXT.md` + `.setup`. |
+| `webui` | Open WebUI; `OLLAMA_BASE_URL` points to the `ollama` stack container over the `edge` network, `SEARXNG_QUERY_URL` to the `searxng` stack for web search. |
 | `yggdrasil` | Self-hosted deploy of the user's own [yggdrasil-hq/yggdrasil-core](https://github.com/yggdrasil-hq/yggdrasil-core) (AI-orchestrated dev platform, pre-alpha). GHCR images, not built from source. Includes a bundled k3s cluster the Orchestrator targets (ADR 003 upstream) — new territory for this otherwise pure-Compose homelab. Project-deployment ingress (`*.apps.<domain>`) is not exposed yet. See `containers/yggdrasil/CONTEXT.md` + `.setup`. |
 | `nginx-proxy-manager` | GUI reverse proxy; sole public listener on `:80`/`:443`, terminates TLS with automatic per-host Let's Encrypt (HTTP-01) certs. Routes to backends by container name over the external `edge` network — no host nginx, no `host.docker.internal` hop. See `containers/nginx-proxy-manager/CONTEXT.md` + `.setup`. |
 

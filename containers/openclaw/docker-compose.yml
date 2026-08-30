@@ -22,6 +22,12 @@ services:
       OPENCLAW_CONFIG_PATH: /home/node/.openclaw/openclaw.json
       OPENCLAW_CONFIG_DIR: /home/node/.openclaw
       OPENCLAW_WORKSPACE_DIR: /home/node/.openclaw/workspace
+      # Points web_search's auto-detected provider at the self-hosted
+      # searxng-stack over `edge`, unauthenticated (same trust model as
+      # ollama). Not a secret, so it's pinned here rather than openclaw.env.
+      # Only takes effect if no other search provider key (BRAVE_API_KEY
+      # etc.) is set in openclaw.env — see containers/searxng/CONTEXT.md.
+      SEARXNG_BASE_URL: http://searxng:8080
     volumes:
       - ${HOME}/storage/homelab/homelab-conf/openclaw/state:/home/node/.openclaw
       - ${HOME}/storage/homelab/homelab-data/openclaw/workspace:/home/node/.openclaw/workspace

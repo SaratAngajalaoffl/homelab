@@ -16,6 +16,12 @@ services:
       # hermes.env via env_file: (the earlier ${VAR} aliases were broken —
       # docker-compose does not interpolate across env_files at parse time).
       HERMES_DASHBOARD: "1"
+      # Points web_search at the self-hosted searxng-stack over `edge`,
+      # unauthenticated (same trust model as ollama). Not a secret, so it
+      # lives here rather than hermes.env. Still requires setting
+      # `web.search_backend: searxng` once in config.yaml (or via the
+      # `hermes tools` wizard) — see containers/searxng/CONTEXT.md + .setup.
+      SEARXNG_BASE_URL: http://searxng:8080
     volumes:
       # Single /opt/data volume is the state of truth: config, keys, sessions,
       # memories, skills, cron jobs, hooks, logs — all persist across upgrades.
