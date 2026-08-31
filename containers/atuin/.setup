@@ -33,7 +33,7 @@ docker compose -f atuin/docker-compose.yml logs atuin
 Add a proxy host in the NPM admin UI (see `containers/nginx-proxy-manager/.setup`
 for how to reach it):
 
-- Domain: `atuin.yggdrasil.cfd`
+- Domain: `atuin.smugiwara.com`
 - Forward to: `atuin_server:8888`
 - Scheme: `http`
 - Request a new SSL certificate (HTTP-01, same as every other proxy host)
@@ -60,7 +60,7 @@ When prompted, point it at the self-hosted server — either answer the
 prompt or set in `~/.config/atuin/config.toml` beforehand:
 
 ```toml
-sync_address = "https://atuin.yggdrasil.cfd"
+sync_address = "https://atuin.smugiwara.com"
 ```
 
 Register/login:
@@ -113,7 +113,7 @@ Once both machines are logged in:
 docker compose -f atuin/docker-compose.yml up -d
 ```
 
-The server is publicly reachable at `atuin.yggdrasil.cfd`; closing
+The server is publicly reachable at `atuin.smugiwara.com`; closing
 registration stops randoms from creating accounts on it. Existing logins
 are unaffected.
 

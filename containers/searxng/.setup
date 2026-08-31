@@ -64,7 +64,7 @@ List**:
   gates it)
 
 **Then the proxy host** — **Proxy Hosts → Add Proxy Host**:
-- Domain: `websearch.yggdrasil.cfd`
+- Domain: `websearch.smugiwara.com`
 - Scheme: `http`, Forward host/port: `searxng:8080`
 - **Access List**: select `searxng-basic-auth` from the dropdown
 - **SSL tab**: request a new Let's Encrypt certificate, force SSL, HTTP/2
@@ -73,13 +73,13 @@ Verify from outside the LAN:
 
 ```bash
 # without credentials — expect 401
-curl -i https://websearch.yggdrasil.cfd/
+curl -i https://websearch.smugiwara.com/
 
 # with credentials — expect 200
-curl -i -u '<user>:<pass>' https://websearch.yggdrasil.cfd/
+curl -i -u '<user>:<pass>' https://websearch.smugiwara.com/
 ```
 
-Or just open `https://websearch.yggdrasil.cfd` in a browser — it'll show
+Or just open `https://websearch.smugiwara.com` in a browser — it'll show
 the standard browser Basic Auth prompt before SearXNG's own UI loads.
 
 ## 5. webui — nothing further
@@ -92,7 +92,7 @@ and confirm:
 ./up-all-stacks.sh webui
 ```
 
-Open `chat.yggdrasil.cfd`, toggle web search on in a chat, and confirm a
+Open `chat.smugiwara.com`, toggle web search on in a chat, and confirm a
 query returns cited results.
 
 ## 6. openclaw — nothing further, unless a key already overrides it
@@ -107,7 +107,7 @@ Already wired in `containers/openclaw/docker-compose.yml`
 If `openclaw.env` already has `BRAVE_API_KEY` (or any other search
 provider key) set, that wins over SearXNG in openclaw's auto-detect
 order — comment it out first if you want SearXNG to actually be used.
-Test from the dashboard (`https://openclaw.yggdrasil.cfd`) by asking the
+Test from the dashboard (`https://openclaw.smugiwara.com`) by asking the
 agent something that needs a current web result.
 
 ## 7. hermes — one manual config step
@@ -146,5 +146,5 @@ Restart once more if you hand-edited the YAML directly:
 docker compose -f hermes/docker-compose.yml restart hermes-gateway
 ```
 
-Test from the dashboard (`https://hermes-dashboard.yggdrasil.cfd`) with a
+Test from the dashboard (`https://hermes-dashboard.smugiwara.com`) with a
 prompt that needs a current web result.

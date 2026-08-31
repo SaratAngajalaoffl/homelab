@@ -13,5 +13,5 @@ ATUIN_DB_URI=postgres://atuin:@atuin-db/atuin
 
 # Leave "true" only while registering accounts on new machines, then flip to
 # "false" and re-run `docker compose up -d` — this server is reachable at a
-# public *.yggdrasil.cfd domain via nginx-proxy-manager. See .setup.
+# public *.smugiwara.com domain via nginx-proxy-manager. See .setup.
 ATUIN_OPEN_REGISTRATION=true

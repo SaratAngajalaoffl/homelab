@@ -38,7 +38,7 @@ docker compose -f openclaw/docker-compose.yml logs -f openclaw-gateway
 Add a proxy host in the NPM admin UI (see
 `containers/nginx-proxy-manager/.setup` for how to reach it):
 
-- Domain: `openclaw.yggdrasil.cfd`
+- Domain: `openclaw.smugiwara.com`
 - Forward to: `openclaw_gateway:18789`
 - Scheme: `http`
 - **Websockets Support: on** — the control UI and agent RPC are websocket
@@ -55,7 +55,7 @@ docker compose --profile cli run --rm openclaw-cli dashboard --no-open
 ```
 
 This prints a dashboard URL/link. Once the NPM proxy host above is live,
-open `https://openclaw.yggdrasil.cfd`, and when prompted for
+open `https://openclaw.smugiwara.com`, and when prompted for
 auth paste in `OPENCLAW_GATEWAY_TOKEN` from `openclaw.env`. Finish the
 setup flow there (confirm model provider, review default agent settings).
 

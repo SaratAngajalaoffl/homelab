@@ -57,25 +57,25 @@ noted.
 
 | Domain | Forward host:port | Notes |
 |---|---|---|
-| `jellyfin.yggdrasil.cfd` | `jellyfin:8096` | Websockets |
-| `portainer.yggdrasil.cfd` | `portainer:9000` | |
-| `cloud.yggdrasil.cfd` | `nextcloud:80` | Advanced tab: `client_max_body_size 0;` |
-| `immich.yggdrasil.cfd` | `immich_server:2283` | Websockets, Advanced: `client_max_body_size 0;` |
-| `homearr.yggdrasil.cfd` | `gluetun:7575` | Shares gluetun's netns |
-| `prowlarr.yggdrasil.cfd` | `gluetun:9696` | |
-| `radarr.yggdrasil.cfd` | `gluetun:7878` | |
-| `sonarr.yggdrasil.cfd` | `gluetun:8989` | |
-| `qbittorrent.yggdrasil.cfd` | `gluetun:8080` | |
-| `flaresolverr.yggdrasil.cfd` | `gluetun:8191` | |
-| `chat.yggdrasil.cfd` | `webui:8080` | Open WebUI, Websockets |
-| `seerr.yggdrasil.cfd` | `seerr:5055` | Websockets |
+| `jellyfin.smugiwara.com` | `jellyfin:8096` | Websockets |
+| `portainer.smugiwara.com` | `portainer:9000` | |
+| `cloud.smugiwara.com` | `nextcloud:80` | Advanced tab: `client_max_body_size 0;` |
+| `immich.smugiwara.com` | `immich_server:2283` | Websockets, Advanced: `client_max_body_size 0;` |
+| `homearr.smugiwara.com` | `gluetun:7575` | Shares gluetun's netns |
+| `prowlarr.smugiwara.com` | `gluetun:9696` | |
+| `radarr.smugiwara.com` | `gluetun:7878` | |
+| `sonarr.smugiwara.com` | `gluetun:8989` | |
+| `qbittorrent.smugiwara.com` | `gluetun:8080` | |
+| `flaresolverr.smugiwara.com` | `gluetun:8191` | |
+| `chat.smugiwara.com` | `webui:8080` | Open WebUI, Websockets |
+| `seerr.smugiwara.com` | `seerr:5055` | Websockets |
 
 Skipped — see `CONTEXT.md` for why:
-- `bazarr.yggdrasil.cfd`, `lidarr.yggdrasil.cfd` — no container currently
+- `bazarr.smugiwara.com`, `lidarr.smugiwara.com` — no container currently
   deployed for either (there's no `bazarr`/`lidarr` service in
   `arr/docker-compose.yml`); these DNS records point nowhere right now
   regardless of the nginx migration.
-- `pdf-edit.yggdrasil.cfd` (→ port 11901), `pm-analysis.yggdrasil.cfd` (→
+- `pdf-edit.smugiwara.com` (→ port 11901), `pm-analysis.smugiwara.com` (→
   port 11909) — not defined in this repo. Join whatever container serves
   them to the `edge` network first, then add proxy hosts for
   `<container>:<port>`.
@@ -88,7 +88,7 @@ Let's Encrypt can't issue a cert for `.lan`. Pick one:
 - **Simplest**: add a proxy host for `portainer.loki.lan` → `portainer:9000`
   with no SSL, and access it over plain HTTP on the LAN only.
 - **Cleaner**: stop using `.lan` for this and give it a real
-  `yggdrasil.cfd` subdomain instead (e.g. `portainer-lan.yggdrasil.cfd`)
+  `smugiwara.com` subdomain instead (e.g. `portainer-lan.smugiwara.com`)
   pointed at your LAN IP in local DNS/hosts only — it gets a normal
   automated cert like everything else, while still never resolving off
   your network.
@@ -110,7 +110,7 @@ unlikely to change anything that was actually working.
 While you're in `/etc/nginx/sites-available/`, `netbird.conf` (and its
 `sites-enabled` symlink) is now dead — the netbird stack was removed from
 this repo entirely (containers, compose, persistent VPN state). Delete
-both, and drop the `netbird.yggdrasil.cfd` DNS record and any router port
+both, and drop the `netbird.smugiwara.com` DNS record and any router port
 forward that existed only for it (STUN `3478/udp`) if you're not planning
 to stand netbird back up.
 
@@ -129,7 +129,7 @@ If NPM can't bind `:443`/`:80` or a domain won't come up: `docker compose
 -f nginx-proxy-manager/docker-compose.yml down`, then `sudo systemctl
 start nginx` to bring the old config back (it's untouched on disk unless
 you've already done step 6). The old per-app `server {}` blocks in
-`/etc/nginx/sites-available/yggdrasil.cfd` still point at each app's old
+`/etc/nginx/sites-available/smugiwara.com` still point at each app's old
 `31xxx` host port — those ports won't exist anymore on the containers
 you've already migrated in step 1, so a full rollback also means
 re-adding `ports:` to the relevant compose files and re-running

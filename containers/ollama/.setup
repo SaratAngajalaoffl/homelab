@@ -71,7 +71,7 @@ effect:
 ./up-all-stacks.sh webui
 ```
 
-Open `chat.yggdrasil.cfd` and confirm models list and a chat completes.
+Open `chat.smugiwara.com` and confirm models list and a chat completes.
 
 ## 4. Public endpoint + API key (nginx-proxy-manager)
 
@@ -84,7 +84,7 @@ openssl rand -hex 32
 
 **Proxy Hosts → Add Proxy Host**:
 
-- Domain: `infer.yggdrasil.cfd`
+- Domain: `infer.smugiwara.com`
 - Scheme: `http`, Forward host/port: `ollama:11434`
 - **SSL tab**: request a new Let's Encrypt certificate, force SSL, HTTP/2
 - **Advanced tab** — paste this, with your generated key in place of
@@ -113,15 +113,15 @@ another machine):
 
 ```bash
 # without a key — expect 401
-curl -i https://infer.yggdrasil.cfd/api/tags
+curl -i https://infer.smugiwara.com/api/tags
 
 # with the key — expect 200 + model list
-curl -s https://infer.yggdrasil.cfd/api/tags \
+curl -s https://infer.smugiwara.com/api/tags \
   -H "Authorization: Bearer REPLACE_WITH_YOUR_KEY"
 ```
 
 Any OpenAI/Ollama-compatible client pointed at
-`https://infer.yggdrasil.cfd` with that bearer token works the same way
+`https://infer.smugiwara.com` with that bearer token works the same way
 (Ollama's `/v1/chat/completions` OpenAI-compatible endpoint included).
 
 ## 5. Retire the host's native ollama.service

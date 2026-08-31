@@ -19,4 +19,4 @@
 
 **Model providers** — Hermes reads keys from two places: `/opt/data/.env` (the setup wizard writes here) and compose-level `-e KEY=value` env vars (which override `.env` values). Compatible with Anthropic, OpenAI, Gemini, OpenRouter, Bedrock, Azure, and more. Can share model provider keys with the openclaw stack on the host (different files; same keys are fine).
 
-**Domain** — `hermes.yggdrasil.cfd` (API server) and `hermes-dashboard.yggdrasil.cfd` (dashboard), both using `http` to NPM. Same public-NPM-with-app-level-auth pattern as every other stack (see .setup). The gateway's own API key is the gate, not network isolation — matching the trust model already used on the host.
+**Domain** — `hermes.smugiwara.com` (API server) and `hermes-dashboard.smugiwara.com` (dashboard), both using `http` to NPM. Same public-NPM-with-app-level-auth pattern as every other stack (see .setup). The gateway's own API key is the gate, not network isolation — matching the trust model already used on the host.

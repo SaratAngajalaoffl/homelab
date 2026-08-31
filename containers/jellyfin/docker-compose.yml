@@ -15,7 +15,7 @@ services:
     restart: "unless-stopped"
     # Optional - alternative address used for autodiscovery
     environment:
-      - JELLYFIN_PublishedServerUrl=https://jellyfin.yggdrasil.cfd
+      - JELLYFIN_PublishedServerUrl=https://jellyfin.smugiwara.com
     # Optional - may be necessary for docker healthcheck to pass if running in host network mode
     extra_hosts:
       - "host.docker.internal:host-gateway"

@@ -12,7 +12,7 @@ services:
       - ${HOME}/storage/homelab/homelab-conf/searxng/config:/etc/searxng
     environment:
       # Used by searxng itself for absolute link generation, not for auth.
-      - SEARXNG_BASE_URL=https://websearch.yggdrasil.cfd/
+      - SEARXNG_BASE_URL=https://websearch.smugiwara.com/
       - UWSGI_WORKERS=4
       - UWSGI_THREADS=4
     cap_drop:
@@ -28,7 +28,7 @@ services:
       start_period: 10s
     # No `ports:` — internal callers (webui, openclaw-gateway, hermes-gateway)
     # reach it unauthenticated at searxng:8080 over `edge`, same trust model
-    # as ollama:11434. Public access goes through NPM at websearch.yggdrasil.cfd,
+    # as ollama:11434. Public access goes through NPM at websearch.smugiwara.com,
     # gated by an NPM Access List (HTTP Basic Auth) since this is a browsable
     # search UI, not just an API — see CONTEXT.md + .setup.
     networks:

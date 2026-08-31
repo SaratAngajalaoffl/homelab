@@ -19,4 +19,4 @@
 - `homelab-conf/openclaw/auth-secrets` → `/home/node/.config/openclaw` — auth encryption key material, kept outside the main state dir on purpose (matches upstream's Docker guide).
 - `homelab-data/openclaw/workspace` → `/home/node/.openclaw/workspace` — the agent's own working directory (files it reads/writes/generates while doing tasks); this is bulk agent-produced content rather than app config, hence `homelab-data` not `homelab-conf`.
 
-**Domain** — `openclaw.yggdrasil.cfd`, same public-NPM-with-app-level-auth pattern as every other stack (see `.setup`). The gateway's own token requirement is the access control, not network isolation — same trust model already used for `portainer` (docker socket access) and `netbird` (Dex IdP) on this host.
+**Domain** — `openclaw.smugiwara.com`, same public-NPM-with-app-level-auth pattern as every other stack (see `.setup`). The gateway's own token requirement is the access control, not network isolation — same trust model already used for `portainer` (docker socket access) and `netbird` (Dex IdP) on this host.

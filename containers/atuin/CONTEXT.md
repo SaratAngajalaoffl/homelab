@@ -8,7 +8,7 @@
 
 **atuin-db** — `postgres:18`. Dedicated instance, not shared with any other stack's postgres (immich and nextcloud each have their own too) — matches the one-stack-one-database convention already in use.
 
-**Encryption model** — history is end-to-end encrypted client-side with a key generated at first `atuin register`/`login`, never sent to the server. The server only ever sees ciphertext plus metadata (timestamps, session IDs). This is why it's safe to expose on the same public `*.yggdrasil.cfd` + NPM pattern as every other stack, rather than requiring `netbird`'s private overlay — compromising the server doesn't expose plaintext command history, only account existence and encrypted blobs.
+**Encryption model** — history is end-to-end encrypted client-side with a key generated at first `atuin register`/`login`, never sent to the server. The server only ever sees ciphertext plus metadata (timestamps, session IDs). This is why it's safe to expose on the same public `*.smugiwara.com` + NPM pattern as every other stack, rather than requiring `netbird`'s private overlay — compromising the server doesn't expose plaintext command history, only account existence and encrypted blobs.
 
 **Registration gate** — `ATUIN_OPEN_REGISTRATION` in `atuin.env` is `true` only during initial machine enrollment, then flipped to `false` (see `.setup`). There's no other access control in front of `/register` while it's `true` besides NPM's TLS termination — the domain is public.
 

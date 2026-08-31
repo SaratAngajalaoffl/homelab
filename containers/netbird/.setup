@@ -6,9 +6,9 @@ this differs from the version retired in `a2b33c6`.
 
 ## 0. Before you start
 
-- Confirm you're prepared to restore the `netbird.yggdrasil.cfd` DNS record
+- Confirm you're prepared to restore the `netbird.smugiwara.com` DNS record
   (deleted alongside the old stack) pointing at your home public IP/dynamic
-  DNS host, same as every other `*.yggdrasil.cfd` record.
+  DNS host, same as every other `*.smugiwara.com` record.
 - Confirm your router forwards `3478/udp` to this host. STUN can't go
   through NPM (raw UDP) — same carve-out category as `arr`'s gluetun ports.
 - `nginx-proxy-manager` must already be up (`edge` network created,
@@ -22,7 +22,7 @@ schema. Run it *from this directory* so the generated files land here:
 
 ```bash
 cd ~/homelab/containers/netbird
-export NETBIRD_DOMAIN=netbird.yggdrasil.cfd
+export NETBIRD_DOMAIN=netbird.smugiwara.com
 curl -fsSL https://github.com/netbirdio/netbird/releases/latest/download/getting-started.sh | bash
 ```
 
@@ -52,7 +52,7 @@ target, and the advanced config's `location` blocks carve out the specific
 gRPC/API/websocket paths to `netbird-server` on the same domain.
 
 **Proxy Hosts → Add Proxy Host**:
-- Domain: `netbird.yggdrasil.cfd`
+- Domain: `netbird.smugiwara.com`
 - Forward Hostname: `netbird-dashboard`, Port: `80`, scheme `http`
 - Block Common Exploits: enabled
 - **SSL tab**: request a new Let's Encrypt certificate, force SSL, **enable
@@ -78,13 +78,13 @@ was removed, currently stuck retrying a dead management URL). Re-point it:
 
 ```bash
 sudo netbird down
-sudo netbird up --management-url https://netbird.yggdrasil.cfd
+sudo netbird up --management-url https://netbird.smugiwara.com
 ```
 
 It'll print a URL to open in a browser to authorize the peer (first-run
 device flow against the embedded IdP) — or generate a setup key from the
 dashboard (**Setup Keys → Add Setup Key**) and use
-`netbird up --management-url https://netbird.yggdrasil.cfd --setup-key <key>`
+`netbird up --management-url https://netbird.smugiwara.com --setup-key <key>`
 instead if you'd rather not do interactive auth on a headless box.
 
 Confirm it got an overlay IP: `netbird status` (look for the assigned
@@ -93,7 +93,7 @@ Confirm it got an overlay IP: `netbird status` (look for the assigned
 ## 6. Enroll your laptop
 
 Install the NetBird client there (see https://netbird.io/docs/getting-started/installation),
-point it at `https://netbird.yggdrasil.cfd` as the management URL, and
+point it at `https://netbird.smugiwara.com` as the management URL, and
 authorize it the same way (browser flow or a setup key).
 
 ## 7. Restrict SSH to the laptop peer (defense in depth)

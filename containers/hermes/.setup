@@ -46,9 +46,9 @@ or similar).
 Add two proxy hosts in the NPM admin UI (see
 `containers/nginx-proxy-manager/.setup` for how to reach it):
 
-### API server (`hermes.yggdrasil.cfd`)
+### API server (`hermes.smugiwara.com`)
 
-- Domain: `hermes.yggdrasil.cfd`
+- Domain: `hermes.smugiwara.com`
 - Forward to: `hermes_gateway:8642`
 - Scheme: `http`
 - **Websockets Support: on** (long-polling also works for some clients)
@@ -66,9 +66,9 @@ Add two proxy hosts in the NPM admin UI (see
   ```
 - Request a new SSL certificate (HTTP-01, same as every other proxy host)
 
-### Dashboard (`hermes-dashboard.yggdrasil.cfd` or same domain under /dashboard)
+### Dashboard (`hermes-dashboard.smugiwara.com` or same domain under /dashboard)
 
-- Domain: `hermes-dashboard.yggdrasil.cfd` (or use an NPM per-host path under the main domain)
+- Domain: `hermes-dashboard.smugiwara.com` (or use an NPM per-host path under the main domain)
 - Forward to: `hermes_gateway:9119`
 - Scheme: `http`
 - **Websockets Support: on**
@@ -96,7 +96,7 @@ docker exec hermes_gateway hermes -p work gateway start
 docker exec hermes_gateway wget -qO- http://127.0.0.1:8642/healthz
 
 # Dashboard auth page (outside, via loopback after NPM is set up):
-curl -sI https://hermes.yggdrasil.cfd/v1/models | head -5
+curl -sI https://hermes.smugiwara.com/v1/models | head -5
 ```
 
 ## Model shared with OpenClaw?
