@@ -113,17 +113,63 @@ def parse_value(raw_val: str) -> str:
     return raw_val.rstrip()
 
 
+def unquote_value(inner: str, quote: str) -> str:
+    if quote == '"':
+        return unquote_double(inner)
+    return inner.replace("\\'", "'").replace("\\\\", "\\")
+
+
+def find_closing_quote(s: str, quote: str, start: int) -> int:
+    """Index of the closing quote in s at/after start, or -1. Backslash-escapes
+    only recognized inside double quotes, matching unquote_double."""
+    i = start
+    while i < len(s):
+        c = s[i]
+        if quote == '"' and c == "\\" and i + 1 < len(s):
+            i += 2
+            continue
+        if c == quote:
+            return i
+        i += 1
+    return -1
+
+
 def parse_env_text(text: str) -> dict[str, str]:
     out: dict[str, str] = {}
-    for raw in text.splitlines():
-        stripped = raw.strip()
+    lines = text.split("\n")
+    n = len(lines)
+    i = 0
+    while i < n:
+        line = lines[i]
+        stripped = line.strip()
         if not stripped or stripped.startswith("#"):
+            i += 1
             continue
-        m = assign_re.match(raw.rstrip("\n"))
+        m = assign_re.match(line)
         if not m:
+            i += 1
             continue
-        key, raw_val = m.group(1), m.group(2)
-        out[key] = parse_value(raw_val)
+        key, rest = m.group(1), m.group(2)
+        quote = rest[:1]
+        if quote in ('"', "'"):
+            # Value may span multiple lines if the quote doesn't close on this line.
+            combined = rest
+            j = i
+            close_idx = find_closing_quote(combined, quote, 1)
+            while close_idx == -1 and j + 1 < n:
+                j += 1
+                combined += "\n" + lines[j]
+                close_idx = find_closing_quote(combined, quote, 1)
+            if close_idx != -1:
+                out[key] = unquote_value(combined[1:close_idx], quote)
+                i = j + 1
+                continue
+            # Unterminated quote even at EOF: fall back to treating the first line as-is.
+            out[key] = parse_value(rest)
+            i += 1
+            continue
+        out[key] = parse_value(rest)
+        i += 1
     return out
 
 
