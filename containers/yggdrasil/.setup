@@ -46,7 +46,7 @@ Set:
 - `INTERNAL_API_TOKEN`, `SESSION_SECRET` — `openssl rand -hex 32` each
 - `APP_PUBLIC_URL`/`API_PUBLIC_URL`/`DOCS_SITE_URL`/`NEXT_PUBLIC_API_BASE_URL`
   — the subdomains you'll create NPM proxy hosts for (suggested:
-  `app.smugiwara.com`, `api.smugiwara.com`, `docs.smugiwara.com`)
+  `app.yggdrasil.cfd`, `api.yggdrasil.cfd`, `docs.yggdrasil.cfd`)
 - `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` — create a GitHub OAuth App
   (GitHub → Settings → Developer settings → OAuth Apps → New OAuth App).
   Homepage URL: `APP_PUBLIC_URL`. Authorization callback URL:
@@ -73,12 +73,12 @@ scheme to each, HTTP-01 SSL cert like every other stack:
 
 | Domain | Forward to |
 |--------|------------|
-| `app.smugiwara.com` | `web:3000` |
-| `api.smugiwara.com` | `api:3000` |
-| `docs.smugiwara.com` | `docusaurus:3000` |
+| `app.yggdrasil.cfd` | `web:3000` |
+| `api.yggdrasil.cfd` | `api:3000` |
+| `docs.yggdrasil.cfd` | `docusaurus:3000` |
 
 `landing` isn't proxied above — add a fourth host for it (e.g. the bare
-`smugiwara.com` or `www.smugiwara.com`) if you want the marketing site
+`yggdrasil.cfd` or `www.yggdrasil.cfd`) if you want the marketing site
 public too; forward to `landing:3000`.
 
 `orchestrator` isn't proxied either — nothing in the web UI calls it
@@ -87,7 +87,7 @@ Add a proxy host for `orchestrator:8080` only if/when that changes.
 
 ## 4. Verify sign-in
 
-Open `https://app.smugiwara.com`, sign in with GitHub. If `GET /auth/github`
+Open `https://app.yggdrasil.cfd`, sign in with GitHub. If `GET /auth/github`
 502s or 503s, check `docker compose -f yggdrasil/docker-compose.yml logs api`
 — almost always a missing/wrong `GITHUB_CLIENT_ID`/`_SECRET` or callback URL
 mismatch.

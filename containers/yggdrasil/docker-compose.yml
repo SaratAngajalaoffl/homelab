@@ -28,7 +28,7 @@ services:
       - ./yggdrasil.env
     environment:
       PORT: "3000"
-      NEXT_PUBLIC_BASE_PATH: "https://api-yggdrasil.smugiwara.com"
+      NEXT_PUBLIC_BASE_PATH: "https://api.yggdrasil.cfd"
       API_INTERNAL_URL: http://api:3000
     depends_on:
       - api

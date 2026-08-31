@@ -35,4 +35,4 @@
 
 **Secrets** — `yggdrasil.env` (Postgres/MinIO creds, `SECRETS_ENCRYPTION_KEY`, `INTERNAL_API_TOKEN`, `SESSION_SECRET`, GitHub OAuth/App credentials) is gitignored, never read or committed by an agent. Covered by `scripts/env/copy_env.sh` like every other `*.env` file.
 
-**Domain** — proxy hosts suggested in `.setup`: `app.smugiwara.com`, `api.smugiwara.com`, `docs.smugiwara.com` (reusing the `smugiwara.com` domain already in use for `netbird`/`hermes`/others — coincidental naming overlap with the app itself, not a conflict since NPM routes by full hostname).
+**Domain** — proxy hosts suggested in `.setup`: `app.yggdrasil.cfd`, `api.yggdrasil.cfd`, `docs.yggdrasil.cfd`. Unlike every other stack in this repo (migrated to `smugiwara.com`), yggdrasil keeps `yggdrasil.cfd` deliberately — it's the app's own name.
