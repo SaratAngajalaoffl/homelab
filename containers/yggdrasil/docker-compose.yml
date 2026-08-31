@@ -17,6 +17,12 @@ services:
     restart: unless-stopped
     environment:
       PORT: "3000"
+      # Next.js standalone server.js binds to $HOSTNAME if set. Docker auto-sets
+      # HOSTNAME to the container's short ID, which resolves in /etc/hosts to
+      # whichever of this container's two network IPs got attached first — not
+      # necessarily the edge one nginx-proxy-manager needs to reach. Pin it to
+      # all interfaces so this doesn't depend on network attach order.
+      HOSTNAME: "0.0.0.0"
     networks:
       - yggdrasil_net
       - edge
@@ -28,6 +34,9 @@ services:
       - ./yggdrasil.env
     environment:
       PORT: "3000"
+      # See HOSTNAME comment on the landing service above — same Next.js
+      # standalone binding behavior, same fix.
+      HOSTNAME: "0.0.0.0"
       NEXT_PUBLIC_BASE_PATH: "https://api.yggdrasil.cfd"
       API_INTERNAL_URL: http://api:3000
     depends_on:
