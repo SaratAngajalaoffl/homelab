@@ -56,46 +56,16 @@ Set:
 ## 2. Storage dirs + first run
 
 ```bash
-mkdir -p ~/storage/homelab/homelab-conf/yggdrasil/{postgres,k3s,kube}
+mkdir -p ~/storage/homelab/homelab-conf/yggdrasil/postgres
 mkdir -p ~/storage/homelab/homelab-data/yggdrasil/minio
 cd ~/homelab/containers
 ./up-all-stacks.sh yggdrasil
 ```
 
-k3s takes 30-60s to become healthy on first boot (pulling its own bundled
-component images). Watch it:
+k3s cluster targeting (kubeconfig, ingress class, cert issuer) is configured
+entirely in-app now — nothing to bootstrap on the host for it.
 
-```bash
-docker compose -f yggdrasil/docker-compose.yml ps
-docker compose -f yggdrasil/docker-compose.yml logs -f k3s
-```
-
-## 3. cert-manager + ClusterIssuer (one-time, manual kubectl step)
-
-k3s doesn't bundle cert-manager. Once `k3s-kubeconfig` has run (check `docker
-compose -f yggdrasil/docker-compose.yml ps` shows it `Exited (0)`):
-
-```bash
-export KUBECONFIG=~/storage/homelab/homelab-conf/yggdrasil/kube/config
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
-kubectl wait --for=condition=Available --timeout=120s \
-  deployment/cert-manager deployment/cert-manager-webhook deployment/cert-manager-cainjector \
-  -n cert-manager
-
-cat <<'EOF' | kubectl apply -f -
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: selfsigned-issuer
-spec:
-  selfSigned: {}
-EOF
-```
-
-This matches `INGRESS_CLASS_NAME=traefik` / `CERT_ISSUER_NAME=selfsigned-issuer`
-already set in the compose file's `orchestrator` service.
-
-## 4. Reverse proxy (nginx-proxy-manager)
+## 3. Reverse proxy (nginx-proxy-manager)
 
 Add three proxy hosts in the NPM admin UI (see
 `containers/nginx-proxy-manager/.setup` for how to reach it) — plain `http`
@@ -115,7 +85,7 @@ public too; forward to `landing:3000`.
 directly from the browser today (the API talks to it over `yggdrasil_net`).
 Add a proxy host for `orchestrator:8080` only if/when that changes.
 
-## 5. Verify sign-in
+## 4. Verify sign-in
 
 Open `https://app.yggdrasil.cfd`, sign in with GitHub. If `GET /auth/github`
 502s or 503s, check `docker compose -f yggdrasil/docker-compose.yml logs api`
@@ -136,8 +106,8 @@ mismatch.
   `./up-all-stacks.sh yggdrasil` (orchestrator picks up the new env on
   restart).
 - **Reaching a deployed project from outside this host** — not wired up.
-  k3s's bundled Traefik (where `<project-slug>.apps.${APPS_BASE_DOMAIN}`
-  actually lives) isn't published anywhere. Decide between a wildcard NPM
-  proxy host (needs DNS-01 wildcard cert, unlike every other host here) or
-  a raw host-port carve-out before relying on "Open deployment" links in the
-  web UI. See CONTEXT.md.
+  Whatever ingress controller the target cluster runs (where
+  `<project-slug>.apps.${APPS_BASE_DOMAIN}` actually lives) isn't published
+  anywhere. Decide between a wildcard NPM proxy host (needs DNS-01 wildcard
+  cert, unlike every other host here) or a raw host-port carve-out before
+  relying on "Open deployment" links in the web UI. See CONTEXT.md.

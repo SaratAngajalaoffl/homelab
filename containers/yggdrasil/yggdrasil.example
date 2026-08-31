@@ -20,9 +20,9 @@ NEXT_PUBLIC_API_BASE_URL=https://api.yourdomain.example
 
 # Base domain for a project's always-on primary deployment
 # (<project-slug>.apps.<domain>, ADR 003 §15). Reaching these from outside
-# this host is NOT wired up yet in this compose file (k3s's bundled Traefik
-# ingress isn't published) — see .setup's "Project-deployment ingress" note.
-# Leave the placeholder for now; revisit once that's wired up.
+# this host is NOT wired up yet in this compose file (the target k3s
+# cluster's ingress isn't published) — see .setup's "Project-deployment
+# ingress" note. Leave the placeholder for now; revisit once that's wired up.
 APPS_BASE_DOMAIN=apps.yourdomain.example
 
 # ---------------------------------------------------------------------------
