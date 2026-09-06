@@ -30,27 +30,34 @@ initContainers:
       - mountPath: /target
         name: plugins
 
-# The chart's CRD install/upgrade Job defaults to `docker.io/bitnami/kubectl`
-# with a tag derived from the cluster's k8s version (here: "1.36"). Bitnami
-# retired their public Docker Hub catalog — that image is no longer pullable,
-# so the Job wedged in Init:ImagePullBackOff, the CRDs were never created, and
-# Velero never installed at all (no server, no node-agent, no Schedule, and
-# `kubectl get backups.velero.io` returned "server doesn't have a resource
-# type").
+# Disabled deliberately. This chart's CRD install/upgrade Job is the single
+# reason Velero never installed at all on this cluster — no CRDs, no server, no
+# node-agent, no Schedule, and `kubectl get backups.velero.io` returning "the
+# server doesn't have a resource type". It failed three different ways:
 #
-# It must be an image with a SHELL, not just kubectl. The chart's init
-# container runs:
-#     /bin/sh -c 'cp `which sh` /tmp && cp `which kubectl` /tmp'
-# to stage both binaries for the main container. registry.k8s.io/kubectl is
-# distroless and has no /bin/sh, so it pulls fine and then dies with
-# Init:RunContainerError — a second, quieter failure than the pull error.
-# alpine/kubectl carries busybox plus kubectl and satisfies both.
+#  1. It defaults to `docker.io/bitnami/kubectl` with a tag derived from the
+#     cluster version ("1.36"). Bitnami retired their public Docker Hub
+#     catalog, so that image 404s -> Init:ImagePullBackOff.
+#  2. Pointed at registry.k8s.io/kubectl instead: pulls, but that image is
+#     distroless. The job's init container runs
+#         /bin/sh -c 'cp `which sh` /tmp && cp `which kubectl` /tmp'
+#     to stage both binaries into a shared volume, and there is no /bin/sh
+#     -> Init:RunContainerError.
+#  3. Pointed at alpine/kubectl: init succeeds, then the main velero container
+#     dies with `exec /tmp/sh: no such file or directory` — Alpine's busybox is
+#     musl-linked and the velero image has no musl loader. The staged binaries
+#     have to match velero's libc, not just be a working kubectl.
 #
-# Pinned to the cluster's exact version; bump on a k3s major/minor upgrade.
-kubectl:
-  image:
-    repository: alpine/kubectl
-    tag: "1.36.4@sha256:a2cd8ee034cbe04d651e565b3373299b31921de5c2af86490559e21b3e197808"
+# Rather than keep hunting for a glibc image that still ships a shell (the
+# archived bitnamilegacy/kubectl tops out at 1.33.4, three minors behind this
+# cluster), drop the job: the chart ships its CRDs in crds/, which both Helm
+# and ArgoCD apply directly. No third-party image in the critical path.
+#
+# TRADE-OFF: Helm never upgrades crds/ on a chart upgrade, and that job was
+# what handled CRD schema changes. On a velero chart bump, check the release
+# notes and apply CRD changes by hand:
+#   kubectl apply -f https://github.com/vmware-tanzu/velero/releases/download/<ver>/velero-crds.yaml
+upgradeCRDs: false
 
 # Runs the Kopia-based node-agent DaemonSet that does the actual PVC
 # file-system backup/restore work.
