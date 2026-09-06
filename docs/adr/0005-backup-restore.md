@@ -118,7 +118,8 @@ Those dump PVCs are standalone PVCs mounted via `extraVolumes`, not
 `volumeClaimTemplates` entries: StatefulSet `volumeClaimTemplates` are
 immutable, so adding one to a live StatefulSet is rejected by the API server.
 
-`on-error: Fail` everywhere except yggdrasil — see Known gaps.
+`on-error: Fail` on every hook: a database that cannot be dumped should fail
+the backup loudly rather than ship one whose database is unrestorable.
 
 ### Monitoring
 
