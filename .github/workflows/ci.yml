@@ -54,6 +54,26 @@ jobs:
           done
           exit "$failed"
 
+      # helm/headlamp and helm/velero have no local Chart.yaml — they are
+      # values-only overlays onto upstream charts, so the loop above skips them
+      # entirely. That gap let a values.schema.json violation reach the cluster:
+      # headlamp types extraManifests as an array of strings, a mapping was
+      # passed, and ArgoCD sat at Unknown/"Failed to load target state" while
+      # quietly serving the last good revision. Render them against their real
+      # upstream charts so schema violations fail here instead.
+      - name: Render values-only overlays against their upstream charts
+        run: |
+          set -euo pipefail
+          helm repo add headlamp https://kubernetes-sigs.github.io/headlamp/ >/dev/null
+          helm repo add vmware-tanzu https://vmware-tanzu.github.io/helm-charts >/dev/null
+          helm repo update >/dev/null
+          echo "::group::headlamp"
+          helm template headlamp headlamp/headlamp -n headlamp -f helm/headlamp/values.yaml >/dev/null
+          echo "::endgroup::"
+          echo "::group::velero"
+          helm template velero vmware-tanzu/velero --version 8.1.0 -n velero -f helm/velero/values.yaml >/dev/null
+          echo "::endgroup::"
+
       - name: Velero backup hook commands must be valid JSON
         run: |
           set -euo pipefail

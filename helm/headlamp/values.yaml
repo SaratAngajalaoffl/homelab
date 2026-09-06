@@ -29,8 +29,13 @@ clusterRoleBinding:
 # access — see docs/adr/0005-backup-restore.md "Public exposure and the netbird
 # migration plan". Shipped via extraManifests because Middlewares are
 # namespaced and k3s's Traefik has allowCrossNamespace off by default.
+# NOTE: this chart's values.schema.json types extraManifests as an array of
+# STRINGS, not objects — passing a mapping fails with "at '/extraManifests/0':
+# got object, want string" and ArgoCD reports the app Unknown/"Failed to load
+# target state" while continuing to run the last good revision.
 extraManifests:
-  - apiVersion: traefik.io/v1alpha1
+  - |
+    apiVersion: traefik.io/v1alpha1
     kind: Middleware
     metadata:
       name: ratelimit
