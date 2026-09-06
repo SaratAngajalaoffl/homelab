@@ -3,7 +3,7 @@ namespace: homelab-yggdrasil
 landing:
   image:
     repository: ghcr.io/yggdrasil-hq/yggdrasil-landing
-    tag: "latest"
+    tag: "latest@sha256:4482362c5d826e7df22f7935ae7278c3c18088f915596bc18738368bf466a16b"
   port: 3000
   env:
     PORT: "3000"
@@ -12,7 +12,7 @@ landing:
 web:
   image:
     repository: ghcr.io/yggdrasil-hq/yggdrasil-web
-    tag: "latest"
+    tag: "latest@sha256:f21073260d6805aeb5c312b4bd51319c890d97398a554b7ed7e37330ff700e53"
   port: 3000
   env:
     PORT: "3000"
@@ -24,7 +24,7 @@ web:
 docusaurus:
   image:
     repository: ghcr.io/yggdrasil-hq/yggdrasil-docusaurus
-    tag: "latest"
+    tag: "latest@sha256:0840a8e206d75a2e3659bb285404b02801af0394a394800d2837e572ba7a9b97"
   port: 3000
   env:
     PORT: "3000"
@@ -46,7 +46,7 @@ db:
 minio:
   image:
     repository: minio/minio
-    tag: "latest"
+    tag: "latest@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e"
   port: 9000
   args: ["server", "/data", "--console-address", ":9001"]
   envSecretName: yggdrasil-secrets
@@ -61,7 +61,7 @@ minio:
 api:
   image:
     repository: ghcr.io/yggdrasil-hq/yggdrasil-api
-    tag: "latest"
+    tag: "latest@sha256:a20edfcc946ac21d3ced973f3f638cc9ae0726999ec98e9fbe7c8936d3c4998d"
   port: 3000
   env:
     PORT: "3000"
@@ -74,7 +74,7 @@ api:
 orchestrator:
   image:
     repository: ghcr.io/yggdrasil-hq/yggdrasil-orchestrator
-    tag: "latest"
+    tag: "latest@sha256:a9de3a132028dcdae81cb7e71c7cfdfea290dd0da2be3435bca6456670a2b5ca"
   port: 8080
   env:
     PORT: "8080"

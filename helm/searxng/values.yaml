@@ -3,7 +3,7 @@ namespace: homelab-searxng
 server:
   image:
     repository: searxng/searxng
-    tag: "latest"
+    tag: "latest@sha256:55e1fa15a63ff04e79e213e6aa2837549877b0c6d60757cdb633ae9111cb5fea"
   port: 8080
   env:
     SEARXNG_BASE_URL: https://websearch.smugiwara.com/
