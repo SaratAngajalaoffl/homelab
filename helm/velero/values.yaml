@@ -63,6 +63,15 @@ upgradeCRDs: false
 # file-system backup/restore work.
 deployNodeAgent: true
 
+# No volume snapshots on this cluster — local-path-provisioner has no CSI
+# snapshot support, so PVCs are captured by fs-backup (see
+# defaultVolumesToFsBackup below). Left at the chart default of true, it renders
+# an unusable VolumeSnapshotLocation — `provider: null` and, because no
+# namespace is threaded into that template, `namespace: default`, which is not
+# even in the homelab AppProject's allowed destinations. It never applied, and
+# held the whole Application at OutOfSync while the rest of velero ran fine.
+snapshotsEnabled: false
+
 # credentials.existingSecret only covers a single Secret; the BSL below
 # points at its own Secret via configuration.backupStorageLocation[].credential
 # instead, so this stays disabled.
