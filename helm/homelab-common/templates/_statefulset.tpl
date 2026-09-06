@@ -5,6 +5,10 @@ Usage: {{ include "homelab-common.statefulset" (dict "root" $ "name" "atuin-db" 
 
 Expected shape of "values": same as homelab-common.deployment, except each
 persistence entry becomes a volumeClaimTemplate (no accessMode default change).
+
+  podAnnotations: {} (optional, annotations on the POD template — not the
+    StatefulSet. Velero's backup hooks are pod annotations, so this is what
+    lets a database stack declare a pre-backup pg_dump; see helm/velero/CONTEXT.md)
 */}}
 {{- define "homelab-common.statefulset" -}}
 {{- $root := .root -}}
@@ -28,6 +32,10 @@ spec:
     metadata:
       labels:
         {{- include "homelab-common.labels" (dict "root" $root "name" $name) | nindent 8 }}
+      {{- with $v.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       {{- with $v.securityContext }}
       securityContext:

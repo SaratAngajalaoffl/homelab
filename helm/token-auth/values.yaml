@@ -1,0 +1,48 @@
+# Bearer-token ForwardAuth for the public AI API endpoints.
+#
+# WHY THIS EXISTS
+# ollama and hermes previously gated their public routes by interpolating the
+# token straight into a Traefik IngressRoute matcher:
+#
+#   match: Host(`infer.smugiwara.com`) && HeaderRegexp(`Authorization`, `^Bearer {{ .Values.apiKey }}$`)
+#
+# with apiKey supplied from a gitignored values.secret.yaml. That cannot work
+# under ArgoCD: the repo-server renders from git, never sees the gitignored
+# file, and the ArgoCD Applications passed no valueFiles — so the rule rendered
+# as `^Bearer $` and matched nothing. selfHeal then reverted any manual
+# `helm upgrade -f values.secret.yaml` on the next reconcile. The endpoints
+# were effectively dead, and the auth control was not running.
+#
+# The design was also fragile independent of ArgoCD: the token became part of a
+# regex, so any regex metacharacter in it silently changed matching semantics,
+# and the comparison was not constant-time.
+#
+# ForwardAuth moves the check out of the routing rule and into a real Secret,
+# so the token never has to appear in git. Clients are unchanged — they still
+# send `Authorization: Bearer <token>`.
+
+namespace: homelab-token-auth
+
+server:
+  image:
+    repository: python
+    tag: "3.13-alpine@sha256:7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5f3f88efedaf3a"
+  port: 8080
+  command: ["python3", "-u", "/app/verify.py"]
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+  # Must provide TOKENS_JSON: a JSON object mapping the public hostname to its
+  # bearer token, e.g.
+  #   {"infer.smugiwara.com":"...","hermes.smugiwara.com":"..."}
+  # Per-host rather than one shared token so ollama's key does not also open
+  # hermes. Never committed — see .setup.
+  envSecretName: token-auth-secrets
+  extraVolumes:
+    - name: app
+      configMap:
+        name: token-auth-app
+  extraVolumeMounts:
+    - name: app
+      mountPath: /app
+      readOnly: true

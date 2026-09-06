@@ -1,5 +1,9 @@
 # velero bootstrap
 
+Velero owns the **cloud** half of the backup story only. The local
+(external drive) half is `helm/backup-local` — a restic CronJob. See
+`docs/adr/0005-backup-restore.md` for why they are two different tools.
+
 ## 1. Cloud bucket/region — done
 
 `helm/velero/values.yaml` `backupStorageLocation[0]` (name: `cloud`) points
@@ -7,26 +11,29 @@ at `loki-homelab-backup` / `ap-south-1`, and the `velero` namespace +
 `velero-cloud-credentials` Secret (key `cloud`, AWS-credentials-file blob)
 already exist in-cluster — reused the access key from an older host-cron
 tar+gpg+S3 backup job, created directly via `kubectl` (never written to a
-file that outlived the command, never committed). Nothing left to do here
-unless that key is rotated.
+file that outlived the command, never committed).
 
-## 2. Create the local credential Secret (never committed)
+**This Secret is now covered by `scripts/k8s-secrets/copy_secrets.sh`.** It
+previously was not: that script only scanned `homelab-*` namespaces, so the
+credential needed to *read the backups* existed nowhere but the cluster the
+backups exist to replace. Re-run the export after any key rotation.
 
-Velero's AWS plugin expects the credential Secret to hold one key (`cloud`)
-whose value is a full AWS-credentials-file blob, `[default]` profile.
+## 2. The CRD job image — fixed, don't revert
 
-Local (backup-minio — same MINIO_ROOT_USER/PASSWORD set up in
-`helm/backup-minio/.setup`):
+The chart's CRD install/upgrade Job defaults to `docker.io/bitnami/kubectl`
+with a tag derived from the cluster version. Bitnami retired their public
+Docker Hub catalog, so `docker.io/bitnami/kubectl:1.36` is unpullable; the
+Job wedged in `Init:ImagePullBackOff` and **Velero never installed at all** —
+no CRDs, no server, no node-agent, no Schedule, and no backups had ever run.
+`values.yaml` now pins `registry.k8s.io/kubectl:v1.36.4`. If a k3s upgrade
+moves the cluster off v1.36.x, bump that tag to match.
+
+Verify the install actually completed:
 
 ```
-cat > /tmp/velero-local-creds <<'EOF'
-[default]
-aws_access_key_id=<MINIO_ROOT_USER>
-aws_secret_access_key=<MINIO_ROOT_PASSWORD>
-EOF
-kubectl -n velero create secret generic velero-local-credentials \
-  --from-file=cloud=/tmp/velero-local-creds
-shred -u /tmp/velero-local-creds
+kubectl -n velero get pods                    # velero + node-agent Running
+kubectl get crd | grep velero                 # CRDs present
+kubectl -n velero get schedules.velero.io     # cloud-weekly listed
 ```
 
 ## 3. Install the velero CLI (for manual backup/restore commands)
@@ -35,40 +42,48 @@ shred -u /tmp/velero-local-creds
 # https://velero.io/docs/latest/basic-install/#install-the-cli
 ```
 
-## The four jobs
+## The jobs
 
-**Cloud backup — automatic.** The `cloud-weekly` Schedule in values.yaml
-runs `0 3 */7 * *` (every 7 days, 03:00) against the `cloud` BSL, `includedNamespaces: ["*"]`
-(so every `homelab-*` PVC-backed namespace), 30-day TTL. Trigger one
-out-of-band the same way:
+**Cloud backup — automatic.** The `cloud-weekly` Schedule runs `0 3 * * 0`
+(Sundays 03:00) against the `cloud` BSL, `includedNamespaces: ["*"]`, 30-day
+TTL. Trigger one out of band:
 
 ```
 velero backup create cloud-manual-$(date +%Y%m%d) --storage-location cloud
+velero backup describe cloud-manual-$(date +%Y%m%d) --details
 ```
 
 **Cloud restore — manual, always.**
 
 ```
-velero backup get                                    # find the backup name
+velero backup get
 velero restore create --from-backup <backup-name>
+velero restore describe <restore-name>
 ```
 
-**Local (hard-drive) backup — manual only, no Schedule.**
+**Local backup and restore** — see `helm/backup-local/.setup`. Not Velero.
+
+## Verify a restore actually works
+
+An untested restore is the usual way "I had backups" becomes data loss. Do
+this once now and after any major change:
 
 ```
-velero backup create local-$(date +%Y%m%d) --storage-location local
+velero restore create verify-$(date +%Y%m%d) \
+  --from-backup <backup-name> \
+  --include-namespaces homelab-atuin \
+  --namespace-mappings homelab-atuin:restore-test
+kubectl -n restore-test get pods,pvc
+# confirm the atuin Postgres actually starts and has data, then:
+kubectl delete namespace restore-test
 ```
 
-**Local restore — manual.**
-
-```
-velero backup get --storage-location local
-velero restore create --from-backup <backup-name>
-```
+`homelab-atuin` is the cheapest realistic test — small, and it exercises the
+Postgres dump-hook path that immich/yggdrasil depend on.
 
 ## Scope note
 
-`arr`'s media/torrents tree (`homelab-arr`) is a hostPath mount, not a PVC
-(see `helm/arr/values.yaml` comment on it) — Velero's fs-backup only
-captures PVC-backed pod volumes, so it's excluded automatically. No
-per-namespace exclusion needed.
+`arr`'s media/torrents tree is a hostPath mount, not a PVC (see
+`helm/arr/values.yaml`) — fs-backup only captures PVC-backed pod volumes, so
+it is excluded automatically. That exclusion is deliberate; ADR 0005 records
+why.

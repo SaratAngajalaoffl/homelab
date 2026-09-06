@@ -17,6 +17,7 @@ Expected shape of "values":
   extraPorts: [] (optional, raw k8s containerPort entries, e.g. { containerPort: 3478, protocol: UDP, hostPort: 3478 } for a Compose-style host port publish — single-node only, same caveat as hostPath)
   runtimeClassName: "" (optional, pod-level, e.g. "nvidia" for GPU workloads)
   strategy: {} (optional, raw k8s Deployment strategy, e.g. { type: Recreate } — required for any hostPort-binding container on a single-node cluster, since RollingUpdate's surge pod can never schedule while the old pod still holds the port)
+  podAnnotations: {} (optional, annotations on the POD template — not the Deployment. Velero's backup hooks are pod annotations, so this is what lets a stack declare a pre-backup database dump; see helm/velero/CONTEXT.md)
 */}}
 {{- define "homelab-common.deployment" -}}
 {{- $root := .root -}}
@@ -43,6 +44,10 @@ spec:
     metadata:
       labels:
         {{- include "homelab-common.labels" (dict "root" $root "name" $name) | nindent 8 }}
+      {{- with $v.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       {{- with $v.runtimeClassName }}
       runtimeClassName: {{ . }}

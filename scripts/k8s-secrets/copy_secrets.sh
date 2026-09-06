@@ -8,9 +8,12 @@
 #      SealedSecret YAML in helm/*/templates/ becomes permanently
 #      undecryptable — they'd all need re-sealing from scratch.
 #   2. A plaintext safety-net copy of every Secret in a homelab-* namespace
-#      that ISN'T owned by a SealedSecret (i.e. not yet converted to the
-#      sealed-secrets pattern) — same reasoning as *.env: something has to
-#      hold the plaintext outside git, and until now that's been your head.
+#      (plus `velero`) that ISN'T owned by a SealedSecret (i.e. not yet
+#      converted to the sealed-secrets pattern) — same reasoning as *.env:
+#      something has to hold the plaintext outside git, and until now that's
+#      been your head. The `velero` namespace matters most of all: it holds the
+#      credential for the bucket the backups are IN. See the EXTRA_NAMESPACES
+#      comment below.
 #
 # Output is JSON copied to the clipboard, same as copy_env.sh — paste it into
 # your vault (e.g. Bitwarden), not into this repo.
@@ -63,15 +66,32 @@ for item in key_secrets.get("items", []):
     name = item["metadata"]["name"]
     controller_keys[name] = item.get("data", {})
 
-# 2. Plaintext secrets in homelab-* namespaces not owned by a SealedSecret.
+# 2. Plaintext secrets not owned by a SealedSecret, across homelab-* plus the
+#    infrastructure namespaces below.
+#
+#    `velero` is here for a reason worth spelling out: it holds
+#    velero-cloud-credentials, the access key for the S3 bucket the backups
+#    live in. This script previously scanned homelab-* only, so the one
+#    credential needed to READ the backups existed nowhere but the cluster
+#    those backups exist to replace — lose the node and the backups are
+#    unreachable. It also holds velero-repo-credentials (the Kopia repository
+#    password); Velero defaults that to a well-known static value, but if it is
+#    ever customised it becomes another single point of loss.
+#
+#    Not included: argocd's homelab-repo-creds (the git deploy key). That is
+#    trivially regenerable — make a new keypair and re-add it as a deploy key —
+#    so it is not worth carrying plaintext around in the vault export.
+EXTRA_NAMESPACES = ["velero"]
+
 namespaces = kubectl_json("get", "namespaces")
-homelab_namespaces = [
-    ns["metadata"]["name"] for ns in namespaces.get("items", [])
-    if ns["metadata"]["name"].startswith("homelab-")
-]
+existing = {ns["metadata"]["name"] for ns in namespaces.get("items", [])}
+target_namespaces = sorted(
+    {n for n in existing if n.startswith("homelab-")}
+    | {n for n in EXTRA_NAMESPACES if n in existing}
+)
 
 secrets = {}
-for ns in homelab_namespaces:
+for ns in target_namespaces:
     ns_secrets = kubectl_json("get", "secret", "-n", ns)
     for item in ns_secrets.get("items", []):
         if item.get("type") != "Opaque":

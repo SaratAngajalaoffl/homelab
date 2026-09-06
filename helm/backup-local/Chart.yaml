@@ -1,0 +1,6 @@
+apiVersion: v2
+name: backup-local
+description: Weekly restic backup of every local-path PVC to the munin external drive — the local half of the backup story, replacing the retired backup-minio/Velero-local-BSL path
+type: application
+version: 0.1.0
+appVersion: "0.18.0"

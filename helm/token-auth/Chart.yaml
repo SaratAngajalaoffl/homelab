@@ -1,0 +1,10 @@
+apiVersion: v2
+name: token-auth
+description: Traefik ForwardAuth endpoint validating Authorization Bearer tokens for the public AI API routes (ollama, hermes), replacing the unusable in-routing-rule token match
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+dependencies:
+  - name: homelab-common
+    version: "0.1.0"
+    repository: "file://../homelab-common"

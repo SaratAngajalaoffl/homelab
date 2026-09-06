@@ -16,13 +16,15 @@ jellyfin:
       mountPath: /cache
       size: 2Gi
       storageClassName: local-path
-  # Live-shared with the still-Compose `arr` stack (sonarr/radarr/qbittorrent,
-  # migrating last per docs/adr/0004-kubernetes-migration.md due to gluetun's
-  # VPN networking) — NOT copied into a PVC, since arr keeps writing new
-  # downloads here. A PVC snapshot would go stale immediately. hostPath keeps
-  # this pod reading the exact same live directory arr's containers write to.
+  # Live-shared with the `arr` stack, which writes new downloads here — so
+  # this is a hostPath, not a PVC: a PVC copy would go stale immediately.
   # Only valid on a single-node cluster (true today) — revisit if a second
   # node is ever added.
+  #
+  # NOT BACKED UP, deliberately: hostPath volumes are invisible to both Velero's
+  # fs-backup and helm/backup-local's PVC-root scan. See docs/adr/0005.
+  # The tree is currently empty — the operator deleted the library as no longer
+  # needed. It may be repopulated later; the wiring is left in place for that.
   extraVolumes:
     - name: media
       hostPath:

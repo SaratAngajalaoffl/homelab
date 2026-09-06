@@ -3,6 +3,8 @@
 ## Status
 Accepted
 
+Partially superseded in practice by [ADR 0005](0005-backup-restore.md): the `homelab-conf`/`homelab-data` split below still describes the `hostPath` mounts (`arr`, `jellyfin`), but **not PVCs**. Every PVC uses the stock `local-path` StorageClass and is provisioned under `/var/lib/rancher/k3s/storage/` on the OS disk; nothing in the repo points a PVC at these paths, and the directories do not currently exist. ADR 0004's claim that PVCs are "pointed at the existing `homelab-conf`/`homelab-data` host paths" was never implemented.
+
 ## Context
 Docker stacks bind-mount host directories for persistent config and user content. Without a convention, volume paths drift (`~/docker/...`, per-app paths, paths inside the repo) and agents cannot predict where to mount new services.
 

@@ -13,6 +13,14 @@ metadata:
     {{- if $ing.clusterIssuer }}
     cert-manager.io/cluster-issuer: {{ $ing.clusterIssuer }}
     {{- end }}
+    {{/*
+    Applied to every route in this stack, not per-ingress: all five are
+    publicly reachable with app-level auth only, and qBittorrent's "run
+    external program on completion" makes its WebUI an RCE primitive by
+    design. Interim mitigation only — target state is netbird-only, see
+    docs/adr/0005-backup-restore.md.
+    */}}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ printf "%s-ratelimit@kubernetescrd" $.Values.namespace }}
 spec:
   ingressClassName: {{ $ing.className | default "traefik" }}
   tls:

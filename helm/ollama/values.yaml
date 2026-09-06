@@ -10,7 +10,7 @@ server:
     # Same override as Compose — qwen3.6:35b's own reasoning burns thousands
     # of tokens before the final answer; Ollama's VRAM-based auto-sizing
     # picks 4096 by default for this model, which truncates before any
-    # content comes out. See containers/ollama/CONTEXT.md.
+    # content comes out. See helm/ollama/.setup if one is added.
     OLLAMA_CONTEXT_LENGTH: "32768"
   # Requires the "nvidia" RuntimeClass + nvidia-device-plugin DaemonSet
   # installed on the cluster first (host-level containerd config change,
@@ -29,10 +29,19 @@ server:
       size: 50Gi
       storageClassName: local-path
 
+# The bearer token itself lives in the token-auth stack's Secret, not here and
+# not in a values.secret.yaml — see helm/token-auth/values.yaml for why the
+# previous in-routing-rule approach could never work under ArgoCD.
+# ForwardAuth's address is an ordinary in-cluster URL, so it may cross
+# namespaces freely; the Middleware object referencing it may not, which is why
+# templates/ingress.yaml creates one in this namespace.
+forwardAuth:
+  address: http://token-auth-server.homelab-token-auth.svc.cluster.local:8080/verify
+
 ingress:
   enabled: true
   host: infer.smugiwara.com
+  className: traefik
   clusterIssuer: letsencrypt-prod
-
-# Set in a gitignored values.secret.yaml, never here — see values.secret.example.yaml
-apiKey: ""
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: homelab-ollama-forwardauth@kubernetescrd

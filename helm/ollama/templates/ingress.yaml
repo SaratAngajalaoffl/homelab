@@ -1,54 +1,30 @@
 {{/*
-Ollama has no auth of its own; the public endpoint needs the same bearer-token
-gate NPM's Advanced-tab nginx snippet provided. Traefik has no built-in exact
-header-match middleware, so this uses IngressRoute's HeaderRegexp condition
-directly instead of a plain Ingress + homelab-common.ingress helper (which
-would forward every request unauthenticated).
+Ollama has no auth of its own, so the public endpoint needs a bearer-token
+gate. That gate used to live in the IngressRoute's own matcher:
 
-The token itself is deliberately NOT a k8s Secret: it has to appear as a
-literal string in the IngressRoute's routing rule, which Traefik can't
-source from a Secret reference. It's passed in via a gitignored
-values.secret.yaml (see values.secret.example.yaml), same as the pre-Sealed-
-Secrets convention for values that can't be expressed as a real k8s Secret --
-`helm upgrade -f values.secret.yaml` at install/upgrade time, never
-committed.
+  match: Host(`...`) && HeaderRegexp(`Authorization`, `^Bearer {{ .Values.apiKey }}$`)
 
-TLS: a standalone cert-manager Certificate requests the cert independent of
-any Ingress object (IngressRoute doesn't get the cert-manager.io/cluster-
-issuer annotation shim a plain Ingress does).
+with apiKey coming from a gitignored values.secret.yaml. Under ArgoCD that
+rendered as `^Bearer $` and matched nothing — the repo-server renders from
+git and never sees the gitignored file — so the endpoint was dead and the
+auth control was not actually running. See helm/token-auth/values.yaml.
+
+Now a plain Ingress plus a ForwardAuth middleware, which also means
+cert-manager's normal cluster-issuer annotation works and the standalone
+Certificate object this template used to need is gone.
 */}}
 {{- $ing := .Values.ingress -}}
-{{- $fullname := include "homelab-common.fullname" (dict "root" $ "name" "server") -}}
 {{- if $ing.enabled }}
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: {{ $fullname }}-tls
-  namespace: {{ .Values.namespace }}
-spec:
-  secretName: {{ $fullname }}-tls
-  dnsNames:
-    - {{ $ing.host }}
-  issuerRef:
-    name: {{ $ing.clusterIssuer }}
-    kind: ClusterIssuer
----
 apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
+kind: Middleware
 metadata:
-  name: {{ $fullname }}
+  name: forwardauth
   namespace: {{ .Values.namespace }}
   labels:
     {{- include "homelab-common.labels" (dict "root" $ "name" "server") | nindent 4 }}
 spec:
-  entryPoints:
-    - websecure
-  routes:
-    - match: Host(`{{ $ing.host }}`) && HeaderRegexp(`Authorization`, `^Bearer {{ .Values.apiKey }}$`)
-      kind: Rule
-      services:
-        - name: {{ $fullname }}
-          port: {{ .Values.server.port }}
-  tls:
-    secretName: {{ $fullname }}-tls
+  forwardAuth:
+    address: {{ .Values.forwardAuth.address | quote }}
+---
+{{ include "homelab-common.ingress" (dict "root" $ "name" "server" "ingress" $ing "port" .Values.server.port) }}
 {{- end }}

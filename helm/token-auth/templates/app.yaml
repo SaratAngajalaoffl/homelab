@@ -1,0 +1,69 @@
+{{/*
+The verifier itself. Kept as a ConfigMap-mounted script on the stock python
+image rather than a built image: it is ~40 lines with no dependencies, and
+this repo has no image build/publish pipeline (every other stack pulls a
+prebuilt upstream image).
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: token-auth-app
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "homelab-common.labels" (dict "root" $ "name" "server") | nindent 4 }}
+data:
+  verify.py: |
+    """Traefik ForwardAuth endpoint.
+
+    200 -> Traefik forwards the request to the backend.
+    401 -> Traefik returns 401 to the client and never touches the backend.
+
+    Which token is required depends on the hostname Traefik was serving, passed
+    through as X-Forwarded-Host, so one deployment can gate several endpoints
+    without any of their tokens being interchangeable.
+    """
+    import hmac
+    import json
+    import os
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    TOKENS = json.loads(os.environ["TOKENS_JSON"])
+
+
+    def authorised(headers) -> bool:
+        host = (headers.get("X-Forwarded-Host") or "").split(":")[0].lower()
+        expected = TOKENS.get(host)
+        if not expected:
+            # Unknown host: fail closed. Adding a route without adding its
+            # token must not silently produce an open endpoint.
+            return False
+        presented = headers.get("Authorization") or ""
+        # Constant-time: the old HeaderRegexp match leaked timing, and a
+        # bearer token is exactly the kind of secret worth comparing safely.
+        return hmac.compare_digest(presented, f"Bearer {expected}")
+
+
+    class Handler(BaseHTTPRequestHandler):
+        def _respond(self):
+            ok = authorised(self.headers)
+            self.send_response(200 if ok else 401)
+            if not ok:
+                self.send_header("WWW-Authenticate", 'Bearer realm="homelab"')
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        do_GET = _respond
+        do_POST = _respond
+        do_HEAD = _respond
+
+        def log_message(self, *args):
+            # Never log Authorization headers into pod logs.
+            pass
+
+
+    if __name__ == "__main__":
+        HTTPServer(("0.0.0.0", {{ .Values.server.port }}), Handler).serve_forever()
+---
+{{ include "homelab-common.deployment" (dict "root" $ "name" "server" "values" .Values.server) }}
+---
+{{ include "homelab-common.service" (dict "root" $ "name" "server" "port" .Values.server.port) }}

@@ -1,18 +1,23 @@
 # Third-party infra, installed from its own upstream chart (not authored
 # here) — same pattern as headlamp/cert-manager/sealed-secrets, see
-# helm/argocd/CONTEXT.md. Backs the four backup/restore jobs:
-#   - cloud backup: automatic, Schedule below runs every 7 days
+# helm/argocd/CONTEXT.md. Velero owns the CLOUD half of the backup story:
+#   - cloud backup: automatic, the weekly Schedule below
 #   - cloud restore: manual (`velero restore create`, see .setup)
-#   - local (hard-drive) backup: manual only, on purpose — no Schedule for it
-#   - local restore: manual (`velero restore create`, see .setup)
+#
+# The LOCAL (external hard drive) half is NOT Velero — see helm/backup-local,
+# a restic CronJob writing straight to the drive. Velero's object-store
+# plugins only speak S3 and it has no filesystem BackupStorageLocation, so
+# pointing it at a local disk previously required fronting the drive with a
+# MinIO gateway (the retired helm/backup-minio stack). That was dropped:
+# the drive is exFAT, which MinIO does not support as a backend (no POSIX
+# ownership, permissions or hardlinks). restic stores content-addressed
+# blobs in its own encrypted format, so it works on exFAT unchanged AND
+# encrypts the drive copy at rest. See docs/adr/0005-backup-restore.md.
 #
 # Install/upgrade:
 #   helm repo add vmware-tanzu https://vmware-tanzu.github.io/helm-charts
 #   helm upgrade --install velero vmware-tanzu/velero -n velero --create-namespace -f helm/velero/values.yaml
 #
-# Both BackupStorageLocations are S3-compatible object stores — Velero has
-# no plain-filesystem BSL, so the local hard drive is fronted by the
-# backup-minio stack (helm/backup-minio) which exposes it as an S3 bucket.
 # PVCs are captured via node-agent (Kopia) file-system backup, not volume
 # snapshots — local-path-provisioner has no CSI snapshot support on this
 # single-node cluster.
@@ -25,11 +30,26 @@ initContainers:
       - mountPath: /target
         name: plugins
 
+# The chart's CRD install/upgrade Job defaults to `docker.io/bitnami/kubectl`
+# with a tag derived from the cluster's k8s version (here: "1.36"). Bitnami
+# retired their public Docker Hub catalog — that image is no longer pullable,
+# so the Job wedged in Init:ImagePullBackOff, the CRDs were never created, and
+# Velero never installed at all (no server, no node-agent, no Schedule, and
+# `kubectl get backups.velero.io` returned "server doesn't have a resource
+# type"). Pinned to the upstream Kubernetes kubectl image instead, matching
+# this cluster's v1.36.4 exactly. Note registry.k8s.io tags carry a leading
+# "v", which the chart's auto-derived tag does not — so the tag must be set
+# explicitly, not left to the version fallback.
+kubectl:
+  image:
+    repository: registry.k8s.io/kubectl
+    tag: v1.36.4
+
 # Runs the Kopia-based node-agent DaemonSet that does the actual PVC
 # file-system backup/restore work.
 deployNodeAgent: true
 
-# credentials.existingSecret only covers a single Secret; each BSL below
+# credentials.existingSecret only covers a single Secret; the BSL below
 # points at its own Secret via configuration.backupStorageLocation[].credential
 # instead, so this stays disabled.
 credentials:
@@ -46,23 +66,17 @@ configuration:
       credential:
         name: velero-cloud-credentials
         key: cloud
-    - name: local
-      provider: aws
-      bucket: velero-local
-      config:
-        region: minio
-        s3Url: http://backup-minio.homelab-backup-minio.svc.cluster.local:9000
-        s3ForcePathStyle: "true"
-      credential:
-        name: velero-local-credentials
-        key: cloud
   # No volumeSnapshotLocation — see comment above, fs-backup covers PVCs.
   defaultVolumesToFsBackup: true
 
 schedules:
   cloud-weekly:
     disabled: false
-    schedule: "0 3 */7 * *"
+    # Was "0 3 */7 * *", documented as "every 7 days" — it is not. Cron's
+    # day-of-month */7 fires on days 1, 8, 15, 22 and 29, so the interval
+    # resets at each month boundary (29th -> 1st is a 2-day gap) and drifts
+    # relative to the week. "0 3 * * 0" is an actual weekly run, Sundays 03:00.
+    schedule: "0 3 * * 0"
     template:
       storageLocation: cloud
       ttl: "720h0m0s"

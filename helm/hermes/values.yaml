@@ -12,7 +12,7 @@ server:
     # dashboard basic-auth vars there) — the app defaults its API server to
     # loopback-only without these, which meant hermes.smugiwara.com's proxy
     # target was unreachable cross-container even under the old Compose
-    # setup, not just here. See containers/hermes/CONTEXT.md.
+    # setup, not just here. See helm/hermes/.setup if one is added.
     API_SERVER_ENABLED: "true"
     API_SERVER_HOST: "0.0.0.0"
   envSecretName: hermes-secrets
@@ -27,16 +27,24 @@ server:
 apiPort: 8642
 dashboardPort: 9119
 
+# The bearer token lives in the token-auth stack's Secret — see
+# helm/token-auth/values.yaml for why the previous in-routing-rule approach
+# could never work under ArgoCD.
+forwardAuth:
+  address: http://token-auth-server.homelab-token-auth.svc.cluster.local:8080/verify
+
 apiIngress:
   enabled: true
   host: hermes.smugiwara.com
+  className: traefik
   clusterIssuer: letsencrypt-prod
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: homelab-hermes-forwardauth@kubernetescrd
 
+# The dashboard is the Hermes web UI, which has its own login — it is not
+# behind the bearer gate, which would break interactive browser use.
 dashboardIngress:
   enabled: true
   host: hermes-dashboard.smugiwara.com
   className: traefik
   clusterIssuer: letsencrypt-prod
-
-# Set in a gitignored values.secret.yaml, never here — see values.secret.example.yaml
-apiKey: ""

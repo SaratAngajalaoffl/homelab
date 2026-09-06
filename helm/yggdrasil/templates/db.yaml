@@ -1,3 +1,6 @@
 {{ include "homelab-common.statefulset" (dict "root" $ "name" "db" "values" .Values.db) }}
 ---
 {{ include "homelab-common.service" (dict "root" $ "name" "db" "port" .Values.db.port) }}
+---
+{{/* Holds the pre-backup pg_dump — see values.yaml db.podAnnotations. */}}
+{{ include "homelab-common.pvcs" (dict "root" $ "name" "db" "persistence" (list .Values.db.dumpsPersistence)) }}

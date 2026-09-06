@@ -1,6 +1,7 @@
 # Defaults safe to commit. DB_PASSWORD/POSTGRES_PASSWORD are NOT here —
-# see templates/sealed-*.yaml (SealedSecret, encrypted, safe to commit) and
-# containers/immich/CONTEXT.md for rotation instructions.
+# see templates/sealed-*.yaml (SealedSecret, encrypted, safe to commit).
+# To rotate: re-seal with kubeseal against the controller's public key and
+# commit the new SealedSecret; see helm/atuin for the reference pattern.
 
 namespace: homelab-immich
 
@@ -49,9 +50,42 @@ db:
   envSecretName: immich-db-secrets
   persistence:
     - name: data
+      # Correct for postgres 16, which is what this image is. Do NOT bump the
+      # major without also moving this mount to the parent
+      # (/var/lib/postgresql) and migrating the data — postgres 18+ stores its
+      # cluster in a major-version-specific subdirectory and its entrypoint
+      # hard-errors on a legacy cluster found at .../data. That is exactly what
+      # broke helm/yggdrasil; see the comment on its db.persistence and
+      # docs/adr/0005-backup-restore.md. Renovate holds postgres majors for
+      # manual review, so this lands as a reviewable PR — read this first.
       mountPath: /var/lib/postgresql/data
       size: 30Gi
       storageClassName: local-path
+  # Velero's Kopia fs-backup walks a live filesystem with no snapshot or
+  # freeze, so copying this data directory while Postgres is running yields a
+  # torn backup — data files and WAL captured at different instants, which can
+  # fail crash recovery on restore. This is the immich metadata DB: without it
+  # the /data blobs restore as an unstructured pile with no albums, faces or
+  # dates. So dump logically before Kopia walks. See helm/velero/CONTEXT.md.
+  #
+  # The dump is deliberately NOT removed by a post hook: helm/backup-local's
+  # restic pass runs at 04:00, an hour after velero's 03:00, and picks up this
+  # same fresh dump from the PVC. Deleting it would leave the local drive copy
+  # with only the torn raw data directory.
+  podAnnotations:
+    pre.hook.backup.velero.io/container: immich-database
+    pre.hook.backup.velero.io/command: '["/bin/sh","-c","set -e; export PGPASSWORD=$POSTGRES_PASSWORD; pg_dump -h 127.0.0.1 -U $POSTGRES_USER -d $POSTGRES_DB -Fc -f /dumps/db.dump.tmp && mv /dumps/db.dump.tmp /dumps/db.dump"]'
+    pre.hook.backup.velero.io/timeout: 30m
+    # Fail the backup loudly rather than shipping one whose DB is unrestorable.
+    pre.hook.backup.velero.io/on-error: Fail
+  # Standalone PVC, not a volumeClaimTemplate entry: StatefulSet
+  # volumeClaimTemplates are immutable, so adding one to a live StatefulSet is
+  # rejected by the API server. Pod template changes are allowed, so the dump
+  # volume is wired in through extraVolumes instead.
+  dumpsPersistence:
+    name: dumps
+    size: 10Gi
+    storageClassName: local-path
   # Compose's `shm_size: 128mb` equivalent — Postgres needs more than k8s's
   # tiny default /dev/shm (64Mi total node-wide tmpfs) for larger queries.
   extraVolumes:
@@ -59,13 +93,17 @@ db:
       emptyDir:
         medium: Memory
         sizeLimit: 128Mi
+    - name: dumps
+      persistentVolumeClaim:
+        claimName: immich-immich-database-dumps
   extraVolumeMounts:
     - name: dshm
       mountPath: /dev/shm
+    - name: dumps
+      mountPath: /dumps
 
 ingress:
   enabled: true
-  # Must match the existing NPM proxy host exactly (containers/nginx-proxy-manager/README.md).
   host: immich.smugiwara.com
   className: traefik
   clusterIssuer: letsencrypt-prod

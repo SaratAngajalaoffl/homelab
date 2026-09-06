@@ -17,6 +17,24 @@ server:
     OVERWRITECLIURL: https://cloud.smugiwara.com
     OVERWRITEHOST: cloud.smugiwara.com
   envSecretName: nextcloud-secrets
+  # Nextcloud here has no separate database container — it runs on SQLite,
+  # whose file lives inside the `data` PVC. Kopia's fs-backup walks that PVC
+  # live and non-atomically, so the SQLite file and the files it indexes can be
+  # captured at different instants. Maintenance mode quiesces writes for the
+  # duration of the walk, which is the supported way to get a consistent copy.
+  #
+  # Unlike the Postgres stacks there is no dump to retain, so a post hook IS
+  # required — and its on-error is Fail so that a stuck maintenance mode
+  # surfaces as a failed backup rather than a silently offline Nextcloud.
+  podAnnotations:
+    pre.hook.backup.velero.io/container: nextcloud-server
+    pre.hook.backup.velero.io/command: '["su","-s","/bin/sh","www-data","-c","php /var/www/html/occ maintenance:mode --on"]'
+    pre.hook.backup.velero.io/timeout: 5m
+    pre.hook.backup.velero.io/on-error: Fail
+    post.hook.backup.velero.io/container: nextcloud-server
+    post.hook.backup.velero.io/command: '["su","-s","/bin/sh","www-data","-c","php /var/www/html/occ maintenance:mode --off"]'
+    post.hook.backup.velero.io/timeout: 5m
+    post.hook.backup.velero.io/on-error: Fail
   persistence:
     - name: app
       mountPath: /var/www/html

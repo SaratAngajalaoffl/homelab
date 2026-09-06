@@ -1,0 +1,2 @@
+{{/* Public-exposure mitigation — see homelab-common/templates/_middleware.tpl. */}}
+{{ include "homelab-common.rateLimit" (dict "root" $ "rateLimit" .Values.rateLimit) }}

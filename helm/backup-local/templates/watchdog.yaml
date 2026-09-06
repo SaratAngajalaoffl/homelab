@@ -1,0 +1,110 @@
+{{/*
+Dead-man's-switch for the backup system as a whole.
+
+Nothing previously noticed when a backup failed to run, which is how the entire
+system sat un-installed and un-noticed: velero's CRD job was wedged on an
+unpullable image, no Schedule existed, and no backup had ever been taken. A
+silent backup system is indistinguishable from a working one right up until a
+restore is needed.
+
+This checks the age of the newest SUCCESSFUL velero backup and only pings
+healthchecks.io when it is fresh. A failed, partially-failed or missing backup
+means no ping, and healthchecks.io raises the alert on the missed check-in —
+so an outright dead cluster is caught too, which a push-on-failure alert
+would miss.
+*/}}
+{{- if .Values.watchdog.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backup-watchdog
+  namespace: {{ .Values.namespace }}
+---
+{{/* Velero's Backup objects are cluster-scoped in practice via the velero
+     namespace; a read-only ClusterRole keeps this from needing any write
+     access at all. */}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: backup-watchdog-read
+rules:
+  - apiGroups: ["velero.io"]
+    resources: ["backups"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: backup-watchdog-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: backup-watchdog-read
+subjects:
+  - kind: ServiceAccount
+    name: backup-watchdog
+    namespace: {{ .Values.namespace }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-watchdog
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: backup-watchdog
+    homelab.smugiwara.com/stack: backup-local
+spec:
+  schedule: {{ .Values.watchdog.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          serviceAccountName: backup-watchdog
+          containers:
+            - name: watchdog
+              image: "{{ .Values.watchdog.image.repository }}:{{ .Values.watchdog.image.tag }}"
+              imagePullPolicy: IfNotPresent
+              # Provides HEALTHCHECK_URL.
+              envFrom:
+                - secretRef:
+                    name: {{ .Values.watchdog.envSecretName }}
+              env:
+                - name: MAX_AGE_HOURS
+                  value: {{ .Values.watchdog.maxAgeHours | quote }}
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+
+                  newest=$(kubectl -n velero get backups.velero.io \
+                    -o jsonpath='{range .items[?(@.status.phase=="Completed")]}{.status.completionTimestamp}{"\n"}{end}' \
+                    2>/dev/null | sort -r | head -1)
+
+                  if [ -z "$newest" ]; then
+                    echo "No completed velero backup exists. Not pinging." >&2
+                    exit 1
+                  fi
+
+                  newest_epoch=$(date -u -d "$newest" +%s 2>/dev/null || echo 0)
+                  if [ "$newest_epoch" = "0" ]; then
+                    echo "Could not parse completionTimestamp '$newest'." >&2
+                    exit 1
+                  fi
+
+                  age_hours=$(( ( $(date -u +%s) - newest_epoch ) / 3600 ))
+                  echo "Newest completed backup: $newest (${age_hours}h ago)"
+
+                  if [ "$age_hours" -gt "$MAX_AGE_HOURS" ]; then
+                    echo "Older than ${MAX_AGE_HOURS}h. Not pinging." >&2
+                    exit 1
+                  fi
+
+                  wget -q -O /dev/null --timeout=10 "$HEALTHCHECK_URL"
+                  echo "Pinged healthchecks.io."
+{{- end }}

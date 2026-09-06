@@ -39,9 +39,42 @@ db:
   envSecretName: yggdrasil-secrets
   persistence:
     - name: data
-      mountPath: /var/lib/postgresql/data
+      # Mounts the PARENT, not .../data — this is the layout postgres 18+
+      # requires, and matches helm/atuin. The 18 image stores its cluster in a
+      # major-version-specific subdirectory (/var/lib/postgresql/18/docker) so
+      # that `pg_upgrade --link` can work without crossing a mount boundary,
+      # and its entrypoint hard-errors if it finds a legacy cluster sitting at
+      # /var/lib/postgresql/data instead.
+      #
+      # This pod spent its whole life in CrashLoopBackOff for exactly that
+      # reason: the postgres 16-alpine -> 18 bump (commit 1e5994c) landed on a
+      # PG16 data directory and 18 refused to start on it. Fixing it was NOT
+      # just this mountPath change — with the mount left at .../data and the
+      # volume emptied, 18 starts happily but writes its cluster to
+      # /var/lib/postgresql/18/docker on the CONTAINER filesystem, which is
+      # ephemeral. That fails silently and loses everything on restart, which
+      # is worse than crashlooping. The volume was dumped with pg_dumpall from
+      # a temporary PG16 pod, wiped, and reloaded into a fresh 18 cluster.
+      # See docs/adr/0005-backup-restore.md.
+      mountPath: /var/lib/postgresql
       size: 5Gi
       storageClassName: local-path
+  podAnnotations:
+    pre.hook.backup.velero.io/container: db
+    pre.hook.backup.velero.io/command: '["/bin/sh","-c","set -e; export PGPASSWORD=$POSTGRES_PASSWORD; pg_dump -h 127.0.0.1 -U $POSTGRES_USER -d $POSTGRES_DB -Fc -f /dumps/db.dump.tmp && mv /dumps/db.dump.tmp /dumps/db.dump"]'
+    pre.hook.backup.velero.io/timeout: 15m
+    pre.hook.backup.velero.io/on-error: Fail
+  dumpsPersistence:
+    name: dumps
+    size: 2Gi
+    storageClassName: local-path
+  extraVolumes:
+    - name: dumps
+      persistentVolumeClaim:
+        claimName: yggdrasil-db-dumps
+  extraVolumeMounts:
+    - name: dumps
+      mountPath: /dumps
 
 minio:
   image:

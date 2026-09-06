@@ -1,0 +1,92 @@
+# Gives Renovate's automerge a real status check to wait on.
+#
+# Scope, honestly stated: this proves every chart still renders and lints after
+# a dependency bump. It does NOT inspect image contents, so a compromised
+# upstream digest on a floating `latest`/`main` tag still auto-merges and gets
+# deployed by ArgoCD's selfHeal. Closing that would mean pinning real semver
+# tags instead of floating ones, or reviewing digest bumps by hand. Recorded as
+# a known gap in docs/adr/0005-backup-restore.md.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  charts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.3
+
+      - name: Render and lint every chart
+        run: |
+          set -euo pipefail
+          failed=0
+          for dir in helm/*/; do
+            name="$(basename "$dir")"
+            [ -f "$dir/Chart.yaml" ] || continue
+            # Library chart: has no installable templates of its own, and is
+            # exercised through every stack that depends on it.
+            [ "$name" = "homelab-common" ] && continue
+
+            echo "::group::$name"
+            # charts/ is gitignored, so the file:// dependency on
+            # homelab-common must be materialised before templating —
+            # otherwise a stale vendored copy would be used locally and none
+            # at all in CI.
+            if grep -q '^dependencies:' "$dir/Chart.yaml"; then
+              helm dependency update "$dir" >/dev/null
+            fi
+            if ! helm template "$name" "$dir"; then
+              echo "::error title=helm template failed::$name"
+              failed=1
+            fi
+            if ! helm lint "$dir"; then
+              echo "::error title=helm lint failed::$name"
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+          exit "$failed"
+
+      - name: Velero backup hook commands must be valid JSON
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import glob, json, subprocess, sys, yaml
+
+          bad = []
+          for chart in sorted(glob.glob("helm/*/Chart.yaml")):
+              d = chart.rsplit("/", 1)[0]
+              name = d.split("/")[-1]
+              if name == "homelab-common":
+                  continue
+              out = subprocess.run(
+                  ["helm", "template", name, d],
+                  capture_output=True, text=True, check=True,
+              ).stdout
+              for doc in yaml.safe_load_all(out):
+                  if not doc:
+                      continue
+                  meta = doc.get("spec", {}).get("template", {}).get("metadata", {}) or {}
+                  for k, v in (meta.get("annotations") or {}).items():
+                      if "hook.backup.velero.io/command" in k:
+                          try:
+                              parsed = json.loads(v)
+                          except Exception as e:
+                              bad.append(f"{name} {k}: not JSON ({e})")
+                              continue
+                          if not isinstance(parsed, list) or not parsed:
+                              bad.append(f"{name} {k}: not a non-empty JSON array")
+
+          # A malformed hook command is silently accepted by Kubernetes and only
+          # surfaces at backup time, as a failed or partially-failed backup.
+          for b in bad:
+              print(f"::error title=invalid velero hook::{b}")
+          sys.exit(1 if bad else 0)
+          PY

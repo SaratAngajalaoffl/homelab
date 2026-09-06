@@ -24,9 +24,17 @@ server:
     - name: docker-sock
       mountPath: /var/run/docker.sock
 
+# Publicly reachable with only Portainer's own login in front of a container
+# runtime socket — a credential-stuffing mitigation, not a fix. Target state is
+# netbird-only; see docs/adr/0005-backup-restore.md.
+rateLimit:
+  average: 20
+  burst: 40
+
 ingress:
   enabled: true
-  # Must match the existing NPM proxy host exactly (containers/nginx-proxy-manager/README.md).
   host: portainer.smugiwara.com
   className: traefik
   clusterIssuer: letsencrypt-prod
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: homelab-portainer-ratelimit@kubernetescrd

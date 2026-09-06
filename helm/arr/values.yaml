@@ -111,11 +111,22 @@ pod:
       size: 2Gi
       storageClassName: local-path
 
-# Live-shared arr data tree (231G, torrents + media + usenet) — arr's own
-# containers keep writing to it, so like jellyfin's `media` hostPath mount,
-# this is NOT copied into a PVC (a snapshot would go stale immediately).
-# hostPath only valid on a single-node cluster (true today).
+# Live-shared arr data tree (torrents + media + usenet) — arr's own containers
+# keep writing to it, so like jellyfin's `media` hostPath mount this is NOT
+# copied into a PVC (a copy would go stale immediately). hostPath is only valid
+# on a single-node cluster (true today).
+#
+# CURRENTLY EMPTY: the operator deleted the library as no longer needed. It may
+# be repopulated over time; the wiring stays for that. Note it is NOT backed up
+# either way — hostPath volumes are invisible to Velero's fs-backup and to
+# helm/backup-local's PVC-root scan. That exclusion is a deliberate scope
+# decision, see docs/adr/0005-backup-restore.md.
 dataHostPath: /home/mugiwara/storage/homelab/homelab-data/arr
+
+# Applied to all five ingresses below by templates/ingress.yaml.
+rateLimit:
+  average: 20
+  burst: 40
 
 ingress:
   sonarr:

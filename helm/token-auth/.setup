@@ -1,0 +1,52 @@
+# token-auth bootstrap
+
+Bearer-token ForwardAuth for the public AI API routes. See `values.yaml` for
+why the previous in-routing-rule token match had to be replaced.
+
+## Create the token Secret (never committed)
+
+`TOKENS_JSON` maps each public hostname to the bearer token that opens it.
+Per-host, so ollama's token does not also open hermes:
+
+```
+kubectl create namespace homelab-token-auth
+kubectl -n homelab-token-auth create secret generic token-auth-secrets \
+  --from-literal=TOKENS_JSON='{"infer.smugiwara.com":"<ollama-token>","hermes.smugiwara.com":"<hermes-token>"}'
+```
+
+Reuse the tokens from the old `helm/ollama/values.secret.yaml` and
+`helm/hermes/values.secret.yaml` if you want existing clients to keep
+working unchanged — the header they send is identical. Those two files are
+now unused by any chart and can be deleted once this is in place.
+
+Restart to pick up a changed Secret (it is read once at startup):
+
+```
+kubectl -n homelab-token-auth rollout restart deploy/token-auth-server
+```
+
+## Verify
+
+```
+# no token -> 401
+curl -so /dev/null -w '%{http_code}\n' https://infer.smugiwara.com/api/tags
+
+# correct token -> 200
+curl -so /dev/null -w '%{http_code}\n' \
+  -H "Authorization: Bearer <ollama-token>" https://infer.smugiwara.com/api/tags
+
+# ollama's token must NOT open hermes -> 401
+curl -so /dev/null -w '%{http_code}\n' \
+  -H "Authorization: Bearer <ollama-token>" https://hermes.smugiwara.com/v1/models
+```
+
+## Adding another gated endpoint
+
+1. Add the hostname and its token to `TOKENS_JSON`.
+2. Add a `forwardauth` Middleware to that stack's namespace (Middlewares are
+   namespaced and k3s's Traefik runs with `allowCrossNamespace` off, so each
+   stack needs its own object — see `helm/ollama/templates/middleware.yaml`).
+3. Annotate the Ingress with `<namespace>-forwardauth@kubernetescrd`.
+
+A hostname with no entry in `TOKENS_JSON` is rejected, so step 1 cannot be
+forgotten in a way that leaves the route open.

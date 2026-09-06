@@ -1,0 +1,112 @@
+{{/*
+Hand-written rather than built on homelab-common: that library only models
+long-running Deployments/StatefulSets, and this is a batch job with a
+root-privileged read-only mount of every PVC on the node. Adding a CronJob
+helper for a single consumer would be more indirection than it saves.
+*/}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-local
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: backup-local
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    homelab.smugiwara.com/stack: backup-local
+spec:
+  schedule: {{ .Values.schedule | quote }}
+  # A backup run can outlive its window; never let two overlap on one repo.
+  concurrencyPolicy: Forbid
+  # If the node was down at 04:00 Sunday, don't fire a late catch-up run days
+  # later — the next scheduled run is soon enough, and a surprise backup
+  # holding the repo lock is worse than a skipped one.
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: backup-local
+            homelab.smugiwara.com/stack: backup-local
+        spec:
+          restartPolicy: Never
+          # PVC data on this node spans several uids (1000 for LinuxServer.io
+          # images, 33 for nextcloud's www-data, 999 for the postgres images).
+          # restic has to read all of it, so this runs as root — the mount is
+          # read-only, so it cannot modify what it reads.
+          securityContext:
+            runAsUser: 0
+          containers:
+            - name: restic
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: RESTIC_REPOSITORY
+                  value: {{ printf "/drive/%s" .Values.resticRepoSubpath | quote }}
+                # Cache under the repo dir; the default (~/.cache) is an
+                # overlayfs layer that vanishes each run, forcing restic to
+                # re-read pack metadata from the drive every time.
+                - name: RESTIC_CACHE_DIR
+                  value: {{ printf "/drive/%s-cache" .Values.resticRepoSubpath | quote }}
+              envFrom:
+                - secretRef:
+                    name: {{ .Values.envSecretName }}
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+
+                  # Fail closed if the drive is not actually mounted. hostPath
+                  # type: Directory already rejects a missing path, but an
+                  # unclean unplug can leave an empty directory behind — and
+                  # writing a "successful" backup to the OS disk is worse than
+                  # no backup, because it looks like it worked.
+                  if ! mountpoint -q /drive; then
+                    echo "FATAL: /drive is not a mount point — munin drive not attached." >&2
+                    exit 1
+                  fi
+
+                  if ! restic cat config >/dev/null 2>&1; then
+                    echo "No restic repository at ${RESTIC_REPOSITORY} — initialising."
+                    restic init
+                  fi
+
+                  echo "Backing up {{ .Values.pvcRoot }} ..."
+                  restic backup /pvcs \
+                    --tag homelab \
+                    --host loki \
+                    --exclude-caches \
+                    --one-file-system
+
+                  echo "Pruning old snapshots ..."
+                  restic forget \
+                    --tag homelab \
+                    --keep-daily {{ .Values.retention.keepDaily }} \
+                    --keep-weekly {{ .Values.retention.keepWeekly }} \
+                    --keep-monthly {{ .Values.retention.keepMonthly }} \
+                    --prune
+
+                  echo "Verifying repository structure ..."
+                  restic check
+
+                  restic snapshots --tag homelab --compact | tail -5
+              volumeMounts:
+                - name: pvcs
+                  mountPath: /pvcs
+                  readOnly: true
+                - name: drive
+                  mountPath: /drive
+          volumes:
+            - name: pvcs
+              hostPath:
+                path: {{ .Values.pvcRoot }}
+                type: Directory
+            - name: drive
+              hostPath:
+                path: {{ .Values.driveHostPath }}
+                type: Directory

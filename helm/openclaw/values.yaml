@@ -34,8 +34,18 @@ server:
       size: 512Mi
       storageClassName: local-path
 
+# CLAUDE.md flags this stack's gateway token as granting agent control, yet it
+# was the one public AI endpoint with no ingress-level gate at all (ollama and
+# hermes both have one). Rate limiting is the interim mitigation; target state
+# is netbird-only. See docs/adr/0005-backup-restore.md.
+rateLimit:
+  average: 20
+  burst: 40
+
 ingress:
   enabled: true
   host: openclaw.smugiwara.com
   className: traefik
   clusterIssuer: letsencrypt-prod
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: homelab-openclaw-ratelimit@kubernetescrd

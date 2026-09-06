@@ -1,0 +1,65 @@
+# Local (external hard drive) backup — the counterpart to helm/velero, which
+# owns the cloud half. See docs/adr/0005-backup-restore.md for why these are
+# two different tools rather than one.
+#
+# Short version: Velero has no filesystem BackupStorageLocation, so targeting
+# a local disk meant fronting it with a MinIO S3 gateway (the retired
+# helm/backup-minio stack). The munin drive is exFAT, which MinIO does not
+# support as a backend — no POSIX ownership, permissions or hardlinks. restic
+# stores content-addressed blobs in its own format, so exFAT is a non-issue,
+# and it encrypts the repository at rest, which matters because these backups
+# contain every Secret in the cluster (including the Sealed Secrets signing
+# key) on a portable drive.
+
+namespace: homelab-backup-local
+
+image:
+  repository: restic/restic
+  tag: "0.18.0@sha256:4cf4a61ef9786f4de53e9de8c8f5c040f33830eb0a10bf3d614410ee2fcb6120"
+
+# Sundays 04:00 — an hour after velero's cloud-weekly (03:00), so the two
+# never contend for disk. Deliberately automatic: the previous design made
+# the local backup manual-only "on purpose", and the result was that it was
+# never run once. Trigger an extra run by hand with:
+#   kubectl -n homelab-backup-local create job --from=cronjob/backup-local manual-$(date +%Y%m%d)
+schedule: "0 4 * * 0"
+
+# Must provide RESTIC_PASSWORD. Never committed — see .setup.
+envSecretName: backup-local-secrets
+
+# Every PVC on this cluster is dynamically provisioned by local-path under
+# this single root (verified: local-path-config nodePathMap ->
+# /var/lib/rancher/k3s/storage), so one read-only mount captures all of them.
+# NOTE: this is the OS disk (nvme1n1p2), not the ~/storage data disk — see
+# CONTEXT.md's "local-path root" entry.
+pvcRoot: /var/lib/rancher/k3s/storage
+
+# The drive is a udisks automount. hostPath type: Directory makes the pod
+# fail to schedule when the drive is absent, rather than DirectoryOrCreate
+# silently materialising the path on the root filesystem and writing
+# "backups" to the OS disk — the failure mode the retired backup-minio chart
+# had. The mountpoint check in the job script is the second line of defence,
+# for the case where the directory lingers after an unclean unplug.
+driveHostPath: /run/media/mugiwara/munin
+resticRepoSubpath: restic
+
+retention:
+  keepDaily: 7
+  keepWeekly: 5
+  keepMonthly: 6
+
+# Dead-man's-switch over the velero cloud backup — see templates/watchdog.yaml.
+# Lives in this stack rather than helm/velero because velero is a values-only
+# passthrough to an upstream chart with nowhere to put extra objects.
+watchdog:
+  enabled: true
+  image:
+    repository: registry.k8s.io/kubectl
+    tag: v1.36.4
+  # Daily 08:00: often enough to catch a missed weekly run promptly, rare
+  # enough that a healthchecks.io grace period of ~36h is comfortable.
+  schedule: "0 8 * * *"
+  # Weekly backups, so anything past 8 days means a run was missed.
+  maxAgeHours: 192
+  # Must provide HEALTHCHECK_URL. Never committed — see .setup.
+  envSecretName: backup-watchdog-secrets

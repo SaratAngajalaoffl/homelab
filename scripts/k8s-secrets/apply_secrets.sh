@@ -54,11 +54,18 @@ if [[ -z "${INPUT//[[:space:]]/}" ]]; then
   exit 1
 fi
 
+# Both of these hold plaintext secrets, so both are mktemp'd (mode 0600, an
+# unpredictable name) and both are removed by the trap — including on failure.
+# MANIFEST_FILE used to be a fixed /tmp/apply_secrets_manifests.yaml written at
+# the default umask and deleted only on the success path, so a failed
+# `kubectl apply` left every restored secret readable on disk, at a name any
+# other process could pre-create as a symlink.
 JSON_FILE="$(mktemp)"
-trap 'rm -f "${JSON_FILE}"' EXIT
+MANIFEST_FILE="$(mktemp)"
+trap 'rm -f "${JSON_FILE}" "${MANIFEST_FILE}"' EXIT
 printf '%s' "${INPUT}" > "${JSON_FILE}"
 
-python3 - "${JSON_FILE}" <<'PY'
+python3 - "${JSON_FILE}" "${MANIFEST_FILE}" <<'PY'
 import json
 import sys
 
@@ -97,21 +104,20 @@ for path, b64data in data["secrets"].items():
         "data": b64data,
     })
 
-with open("/tmp/apply_secrets_manifests.yaml", "w", encoding="utf-8") as f:
+with open(sys.argv[2], "w", encoding="utf-8") as f:
     for i, m in enumerate(manifests):
         if i:
             f.write("---\n")
         json.dump(m, f)
         f.write("\n")
 
-print(f"wrote {len(manifests)} manifest(s) to /tmp/apply_secrets_manifests.yaml")
+print(f"wrote {len(manifests)} manifest(s)")
 print(f"  controller key(s): {len(data['controller_keys'])}")
 print(f"  plaintext secret(s): {len(data['secrets'])}")
 PY
 
 echo "Applying..."
-kubectl apply -f /tmp/apply_secrets_manifests.yaml
-rm -f /tmp/apply_secrets_manifests.yaml
+kubectl apply -f "${MANIFEST_FILE}"
 
 if python3 -c "import json; d=json.load(open('${JSON_FILE}')); exit(0 if d['controller_keys'] else 1)"; then
   echo "Restarting sealed-secrets-controller to pick up restored key(s)..."

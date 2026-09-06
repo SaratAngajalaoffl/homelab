@@ -1,7 +1,18 @@
 # ADR 0004: Migrate from Docker Compose to Kubernetes (k3s)
 
 ## Status
-Accepted
+Accepted. Two clauses are superseded by [ADR 0005](0005-backup-restore.md) and
+must not be followed as written:
+
+- **"Backups: namespaced CronJobs (restic or rsync-based)"** (Decision) — what
+  was built is Velero-to-S3 plus a restic CronJob to the external drive. ADR
+  0005 records the design and why.
+- **"NetworkPolicies gate which namespaces may be reached from publicly-exposed
+  Ingress routes"** (Decision, Ingress bullet) — this was never implemented. No
+  NetworkPolicy has ever existed in this repo.
+
+And one Consequence is now actively destructive — see the ⚠️ note on the
+Traefik `LoadBalancer` bullet below.
 
 ## Context
 The homelab currently runs as one Docker Compose stack per service group (ADR 0003), on a single Arch Linux desktop, fronted by `nginx-proxy-manager` as the sole public listener (ADR 0002's storage layout underneath). This has worked well for a self-contained single-host setup, but three things now push past what it comfortably supports:
@@ -44,6 +55,8 @@ Migrate the homelab from per-stack Docker Compose to a single **k3s** cluster, a
 - A shared library chart needs to exist before the second stack migrates, or per-stack charts will duplicate boilerplate the library chart was meant to avoid — worth building alongside the first PoC stack, not after.
 - After the PoC stack, `helm upgrade --install` is itself superseded by ArgoCD for any stack migrated from then on; `up-all-stacks.sh`/`down-all-stacks.sh` and manual `helm` invocations only remain relevant for stacks still on Compose or mid-PoC.
 - The storage convention (`homelab-conf` vs `homelab-data`, ADR 0002) is preserved conceptually but re-expressed as PVs/PVCs rather than bind mounts.
-- **k3s's bundled Traefik defaults to a `LoadBalancer` Service.** Its `ServiceLB` (klipper) component installs iptables rules that intercept externally-arriving traffic on host ports 80/443 and redirect it into the cluster, regardless of what Docker already has bound to those ports — this silently hijacked all public `*.smugiwara.com` traffic away from `nginx-proxy-manager` the first time k3s was installed (traffic to `localhost` was unaffected, only externally-sourced connections were redirected, which made it look like an NPM outage rather than a routing conflict). Until the deliberate ingress cutover happens, Traefik's Service must stay patched to `ClusterIP` (`kubectl patch svc traefik -n kube-system -p '{"spec": {"type": "ClusterIP"}}'`) so it only serves in-cluster/test traffic and never competes with NPM for host ports. Re-check this after any k3s upgrade or reinstall — it resets to `LoadBalancer` by default.
+- **k3s's bundled Traefik defaults to a `LoadBalancer` Service.** Its `ServiceLB` (klipper) component installs iptables rules that intercept externally-arriving traffic on host ports 80/443 and redirect it into the cluster, regardless of what Docker already has bound to those ports — this silently hijacked all public `*.smugiwara.com` traffic away from `nginx-proxy-manager` the first time k3s was installed (traffic to `localhost` was unaffected, only externally-sourced connections were redirected, which made it look like an NPM outage rather than a routing conflict). ~~Until the deliberate ingress cutover happens, Traefik's Service must stay patched to `ClusterIP` (`kubectl patch svc traefik -n kube-system -p '{"spec": {"type": "ClusterIP"}}'`) so it only serves in-cluster/test traffic and never competes with NPM for host ports. Re-check this after any k3s upgrade or reinstall — it resets to `LoadBalancer` by default.~~
+
+⚠️ **Obsolete — do not do this.** The ingress cutover happened: `nginx-proxy-manager` is retired and Traefik is now the sole public listener, so it *must* hold host ports 80/443. Patching its Service to `ClusterIP` today takes every public service offline. The paragraph above is retained as the record of the original incident only.
 - `nginx-proxy-manager`'s stack directory is removed once cutover completes; Traefik + cert-manager configuration becomes its own chart/concern under `helm/`, to be settled when that work starts.
 - CLAUDE.md's "no host port publishing for HTTP services" / `edge` network rules apply only to still-Compose stacks; migrated stacks are governed by Ingress + NetworkPolicy instead, and CLAUDE.md will need a follow-up update once the first stack lands to document the new agent rules for k8s manifests.

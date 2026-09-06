@@ -1,7 +1,7 @@
 # Defaults safe to commit. Anything secret (passwords, DB URIs with
-# credentials) is NOT set here — see values.secret.example.yaml and
-# CONTEXT.md for how the corresponding Secret is created out-of-band,
-# same "never commit *.env-equivalent files" rule as the rest of this repo.
+# credentials) is NOT set here — see templates/sealed-*.yaml. This stack is the
+# reference implementation of the Sealed Secrets pattern: the secrets are
+# committed, encrypted, and reconstituted in-cluster by the controller.
 
 namespace: homelab-atuin
 
@@ -18,7 +18,7 @@ server:
     ATUIN_HOST: "0.0.0.0"
     ATUIN_PORT: "8888"
   # Secret must provide ATUIN_DB_URI (and ATUIN_OPEN_REGISTRATION if you
-  # want it settable without a chart change) — see values.secret.example.yaml.
+  # want it settable without a chart change) — see templates/sealed-server-secrets.yaml.
   envSecretName: atuin-server-secrets
   persistence:
     - name: config
@@ -38,10 +38,28 @@ db:
       mountPath: /var/lib/postgresql
       size: 5Gi
       storageClassName: local-path
+  # Logical dump before Kopia walks the data directory — see the equivalent
+  # comment in helm/immich/values.yaml and helm/velero/CONTEXT.md. This stack
+  # is also the cheapest realistic restore test (see helm/velero/.setup).
+  podAnnotations:
+    pre.hook.backup.velero.io/container: atuin-db
+    pre.hook.backup.velero.io/command: '["/bin/sh","-c","set -e; export PGPASSWORD=$POSTGRES_PASSWORD; pg_dump -h 127.0.0.1 -U $POSTGRES_USER -d $POSTGRES_DB -Fc -f /dumps/db.dump.tmp && mv /dumps/db.dump.tmp /dumps/db.dump"]'
+    pre.hook.backup.velero.io/timeout: 15m
+    pre.hook.backup.velero.io/on-error: Fail
+  dumpsPersistence:
+    name: dumps
+    size: 2Gi
+    storageClassName: local-path
+  extraVolumes:
+    - name: dumps
+      persistentVolumeClaim:
+        claimName: atuin-atuin-db-dumps
+  extraVolumeMounts:
+    - name: dumps
+      mountPath: /dumps
 
 ingress:
   enabled: true
-  # Must match the existing NPM proxy host exactly (containers/nginx-proxy-manager/README.md)
   # so the public domain doesn't change when this stack cuts over from NPM to Traefik.
   host: atuin.smugiwara.com
   className: traefik

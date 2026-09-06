@@ -1,0 +1,98 @@
+# backup-local bootstrap
+
+restic backup of every local-path PVC to the munin external drive. This is
+the local half of the backup story; `helm/velero` owns the cloud half. See
+`docs/adr/0005-backup-restore.md`.
+
+## 1. Make sure the drive is mounted
+
+`/run/media/mugiwara/munin` is a udisks automount (`/dev/sdb1`, exFAT, 1.9T).
+The CronJob mounts it with `hostPath: type: Directory` and additionally
+checks `mountpoint -q` before writing, so if the drive is detached the job
+fails loudly instead of backing up to the OS disk. Nothing to do here as
+long as the drive is attached.
+
+## 2. Create the repository password Secret (never committed)
+
+restic encrypts the repository with this password. **Losing it makes every
+snapshot on the drive permanently unreadable** — store it in the same vault
+as the `copy_secrets.sh` export, alongside the Sealed Secrets signing key.
+
+```
+kubectl create namespace homelab-backup-local
+kubectl -n homelab-backup-local create secret generic backup-local-secrets \
+  --from-literal=RESTIC_PASSWORD='<pick-a-strong-passphrase>'
+```
+
+This is created out-of-band rather than sealed for the same reason as
+Velero's credentials: it is the key that unlocks the backups, so it must
+exist in a vault independently of anything stored in this cluster or repo.
+A SealedSecret would be decryptable only by the controller whose own key
+lives in the backups it protects.
+
+## 3. Create the watchdog Secret (never committed)
+
+The `backup-watchdog` CronJob pings a healthchecks.io check daily, but only
+while the newest *completed* Velero backup is under 8 days old. A failed,
+partially-failed or missing backup means no ping, and healthchecks.io alerts
+on the missed check-in — which also catches an entirely dead cluster.
+
+Create a check at <https://healthchecks.io> with period 1 day / grace 36
+hours, then:
+
+```
+kubectl -n homelab-backup-local create secret generic backup-watchdog-secrets \
+  --from-literal=HEALTHCHECK_URL='https://hc-ping.com/<uuid>'
+```
+
+Set `watchdog.enabled: false` in `values.yaml` if you would rather not run it
+than run it un-configured — the CronJob will fail every day without the
+Secret, which is noisy but not harmful.
+
+## 4. First run
+
+The CronJob fires Sundays 04:00. Trigger one immediately to initialise the
+repository and confirm it works end to end:
+
+```
+kubectl -n homelab-backup-local create job --from=cronjob/backup-local \
+  manual-$(date +%Y%m%d)
+kubectl -n homelab-backup-local logs -f job/manual-$(date +%Y%m%d)
+```
+
+Expect `No restic repository at /drive/restic — initialising.` on the first
+run, then a snapshot summary.
+
+## Restoring
+
+The restic repository lives at `/run/media/mugiwara/munin/restic`. Restore
+from any machine with the drive and the password — no cluster required,
+which is the point of keeping this path independent of Velero:
+
+```
+export RESTIC_REPOSITORY=/run/media/mugiwara/munin/restic
+export RESTIC_PASSWORD='<passphrase>'
+
+restic snapshots                          # find the snapshot
+restic restore <snapshot-id> --target /tmp/restore
+
+# Restore one stack's PVC only:
+restic restore <snapshot-id> --target /tmp/restore \
+  --include '/pvcs/pvc-*_homelab-immich_*'
+```
+
+Paths inside a snapshot are `/pvcs/<pvc-uid>_<namespace>_<pvc-name>`, mirroring
+local-path's directory naming under `/var/lib/rancher/k3s/storage`. Copy the
+restored directory back over the live PVC directory with the workload scaled
+to zero.
+
+## Scope
+
+Everything under `/var/lib/rancher/k3s/storage` — i.e. every PVC on the
+cluster, since local-path provisions all of them under that single root.
+That includes the Postgres/SQLite dumps written by the Velero pre-backup
+hooks (see `helm/immich`, `helm/atuin`, `helm/yggdrasil`, `helm/nextcloud`),
+so this path gets consistent logical database dumps too.
+
+Not included: the `arr`/`jellyfin` media tree, which is a hostPath, not a
+PVC — a deliberate exclusion, see ADR 0005.
