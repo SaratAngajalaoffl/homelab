@@ -7,7 +7,7 @@ namespace: homelab-arr
 # container in this pod, with no explicit network_mode needed.
 pod:
   gluetun:
-    image: qmcgaw/gluetun:latest
+    image: qmcgaw/gluetun:latest@sha256:89e3cbe22e0d6f09a18d3e86269392fd9f7f08e8991040741e577f8f127cdfe4
     env:
       # Kernel wireguard needs net.ipv4.conf.all.src_valid_mark=1, which is
       # not on this cluster's allowed pod-sysctl list (SysctlForbidden) and
@@ -34,7 +34,7 @@ pod:
       storageClassName: local-path
 
   qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:latest
+    image: lscr.io/linuxserver/qbittorrent:latest@sha256:8d48fa8c619caadfb103f04efea8747e2a2762d6c7551690919cffb987e61cee
     env:
       PUID: "1000"
       PGID: "1000"
@@ -49,7 +49,7 @@ pod:
       storageClassName: local-path
 
   flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:latest
+    image: ghcr.io/flaresolverr/flaresolverr:latest@sha256:139dfee1c6f89249c8d665d1333a42e8ec74ec0a86bc6bb1c8461e10d3a66a47
     env:
       LOG_LEVEL: "info"
       LOG_HTML: "false"
@@ -57,7 +57,7 @@ pod:
       TZ: "Europe/London"
 
   sonarr:
-    image: lscr.io/linuxserver/sonarr:latest
+    image: lscr.io/linuxserver/sonarr:latest@sha256:4d9df314875e1249ab7d6170c2b9b3dc1d8e6383f168ceb10dc9a5ad9b324739
     env:
       PUID: "1000"
       PGID: "1000"
@@ -70,7 +70,7 @@ pod:
       storageClassName: local-path
 
   radarr:
-    image: lscr.io/linuxserver/radarr:latest
+    image: lscr.io/linuxserver/radarr:latest@sha256:119aaa4a4f7349bcd2a136c5373a0d7925b5479915c7dfe0c0ad352db2a6d438
     env:
       PUID: "1000"
       PGID: "1000"
@@ -83,7 +83,7 @@ pod:
       storageClassName: local-path
 
   prowlarr:
-    image: lscr.io/linuxserver/prowlarr:latest
+    image: lscr.io/linuxserver/prowlarr:latest@sha256:91844fa2c927ad6ede5630127183cc7868b175f6223e83e6a5da1fffea2aa782
     env:
       PUID: "1000"
       PGID: "1000"
@@ -96,7 +96,7 @@ pod:
       storageClassName: local-path
 
   homarr:
-    image: ghcr.io/homarr-labs/homarr:latest
+    image: ghcr.io/homarr-labs/homarr:latest@sha256:7d87f7fdd35f8bbee1b922b9b74fad8ce9967a1a66b8c6db1a168780c03d693b
     env:
       TZ: "Asia/Kolkata"
       PUID: "1000"

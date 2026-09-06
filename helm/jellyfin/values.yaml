@@ -3,7 +3,7 @@ namespace: homelab-jellyfin
 jellyfin:
   image:
     repository: jellyfin/jellyfin
-    tag: "latest"
+    tag: "latest@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db"
   port: 8096
   env:
     JELLYFIN_PublishedServerUrl: https://jellyfin.smugiwara.com
@@ -35,7 +35,7 @@ jellyfin:
 seerr:
   image:
     repository: ghcr.io/seerr-team/seerr
-    tag: "latest"
+    tag: "latest@sha256:f4768de5f616248d723e05891f3345a1402123775d03bf0890dbfedc0831bda1"
   port: 5055
   env:
     LOG_LEVEL: debug

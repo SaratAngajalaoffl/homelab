@@ -3,7 +3,7 @@ namespace: homelab-portainer
 server:
   image:
     repository: portainer/portainer-ce
-    tag: "latest"
+    tag: "latest@sha256:511f3f06c96fe3b993ebeaafde311c1959cae73a7ef825dba6397d51b450dffa"
   port: 9000
   persistence:
     - name: data

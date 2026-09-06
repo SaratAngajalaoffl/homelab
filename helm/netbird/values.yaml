@@ -3,7 +3,7 @@ namespace: homelab-netbird
 server:
   image:
     repository: netbirdio/netbird-server
-    tag: "latest"
+    tag: "latest@sha256:3086534361a18573b85897383a0753a97b8c75d68dee9926fbd7eccab1f2fe89"
   port: 80
   args: ["--config", "/etc/netbird/config.yaml"]
   persistence:
@@ -29,7 +29,7 @@ server:
 dashboard:
   image:
     repository: netbirdio/dashboard
-    tag: "latest"
+    tag: "latest@sha256:fa2d8b02a81761e4d2a22df4041d13316b7635f1e93273eafeb53d4991e55b5a"
   port: 80
   envSecretName: netbird-dashboard-env
 
