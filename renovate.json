@@ -8,6 +8,16 @@
   },
   "packageRules": [
     {
+      "description": "Auto-merge non-major bumps once CI passes; major bumps always need manual review.",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "automerge": true
+    },
+    {
+      "description": "Major version bumps never auto-merge, regardless of package.",
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    },
+    {
       "description": "Immich server/ML move in lockstep and need release-note review before bumping.",
       "matchPackageNames": [
         "ghcr.io/immich-app/immich-server",

@@ -16,6 +16,10 @@ server:
   # installed on the cluster first (host-level containerd config change,
   # done by the user — see .setup-equivalent instructions given out of repo).
   runtimeClassName: nvidia
+  # Single GPU on a single node: RollingUpdate's surge pod can never schedule
+  # while the old pod still holds the only nvidia.com/gpu unit.
+  strategy:
+    type: Recreate
   resources:
     limits:
       nvidia.com/gpu: 1
