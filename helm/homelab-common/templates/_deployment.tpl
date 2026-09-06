@@ -16,6 +16,7 @@ Expected shape of "values":
   extraVolumeMounts: [] (optional, raw k8s volumeMount entries, paired with extraVolumes by name)
   extraPorts: [] (optional, raw k8s containerPort entries, e.g. { containerPort: 3478, protocol: UDP, hostPort: 3478 } for a Compose-style host port publish — single-node only, same caveat as hostPath)
   runtimeClassName: "" (optional, pod-level, e.g. "nvidia" for GPU workloads)
+  strategy: {} (optional, raw k8s Deployment strategy, e.g. { type: Recreate } — required for any hostPort-binding container on a single-node cluster, since RollingUpdate's surge pod can never schedule while the old pod still holds the port)
 */}}
 {{- define "homelab-common.deployment" -}}
 {{- $root := .root -}}
@@ -31,6 +32,10 @@ metadata:
     {{- include "homelab-common.labels" (dict "root" $root "name" $name) | nindent 4 }}
 spec:
   replicas: {{ $v.replicas | default 1 }}
+  {{- with $v.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "homelab-common.selectorLabels" (dict "root" $root "name" $name) | nindent 6 }}

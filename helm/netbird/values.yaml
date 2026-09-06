@@ -6,6 +6,10 @@ server:
     tag: "latest@sha256:3086534361a18573b85897383a0753a97b8c75d68dee9926fbd7eccab1f2fe89"
   port: 80
   args: ["--config", "/etc/netbird/config.yaml"]
+  # hostPort 3478 can't support a RollingUpdate surge on a single node: the
+  # new pod can't schedule while the old pod still holds the port.
+  strategy:
+    type: Recreate
   persistence:
     - name: data
       mountPath: /var/lib/netbird
