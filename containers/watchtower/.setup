@@ -1,0 +1,10 @@
+1. `cp watchtower.example watchtower.env`
+2. Pick a shoutrrr notification service and fill in `WATCHTOWER_NOTIFICATION_URL`
+   in `watchtower.env` (ntfy is the fastest to set up: install the ntfy app,
+   subscribe to a topic, use `ntfy://<topic>@ntfy.sh`).
+3. `docker compose -f docker-compose.yml up -d --pull always`
+4. Check `docker logs watchtower` after the first scheduled run (default
+   08:00 daily) to confirm notifications are firing.
+
+No further action needed — this stack reports only, it never touches other
+containers.

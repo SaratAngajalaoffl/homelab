@@ -1,0 +1,37 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "docker:pinDigests"],
+  "dependencyDashboard": true,
+  "ignorePaths": ["containers/**"],
+  "helm-values": {
+    "fileMatch": ["^helm/.+/values\\.yaml$"]
+  },
+  "packageRules": [
+    {
+      "description": "Immich server/ML move in lockstep and need release-note review before bumping.",
+      "matchPackageNames": [
+        "ghcr.io/immich-app/immich-server",
+        "ghcr.io/immich-app/immich-machine-learning"
+      ],
+      "groupName": "immich",
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "description": "Databases: slow-roll major/minor bumps, never auto-merge.",
+      "matchPackageNames": [
+        "postgres",
+        "ghcr.io/immich-app/postgres",
+        "docker.io/valkey/valkey",
+        "ghcr.io/atuinsh/atuin"
+      ],
+      "minimumReleaseAge": "7 days",
+      "automerge": false
+    },
+    {
+      "description": "Floating-tag images: only digest bumps are meaningful; keep tag as-is.",
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "matchCurrentValue": "/^(latest|main)$/",
+      "enabled": false
+    }
+  ]
+}

@@ -36,5 +36,7 @@
 
 **`edge` network** — external docker bridge network joined by nginx-proxy-manager and every HTTP-facing container across every stack. Auto-created by `up-all-stacks.sh` if missing.
 
+**Renovate** — `renovate.json` at repo root. Bot that scans `helm/*/values.yaml` for `image.repository`/`image.tag` pairs and opens a PR per available update, so keeping k3s workloads current is "review and merge a PR" instead of manually diffing registries. Pinned DB/stateful images (Immich, Atuin, Postgres, valkey) get a longer `minimumReleaseAge` and no automerge; floating tags (`latest`/`main`) get digest-only pin PRs instead of tag bumps, since there's no tag to bump. Requires the Renovate GitHub App installed on the repo (or a self-hosted runner) — see `renovate.json` comments and ADR 0004 for the ArgoCD/Helm context this replaces manual tag-watching for.
+
 **netbird** — `containers/netbird/`. Self-hosted mesh VPN control plane (`netbird-server` + `dashboard`), trimmed to just those two containers — no routing peer, no external IdP, no coturn. Purpose is narrow: let an enrolled laptop reach this host's SSH port over an encrypted overlay network without ever exposing `22/tcp` to the internet. The host itself joins the mesh via a native systemd `netbird` client, not a container. See its `CONTEXT.md` + `.setup`.
 
