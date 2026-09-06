@@ -83,6 +83,23 @@ The cost is asymmetry: the local copy is file-level, not object-level. Rebuild
 from cloud; use the drive to get *data* back when the cloud copy is
 unavailable or too slow.
 
+### yggdrasil's Postgres: dumped, wiped, reloaded
+
+`postgres:16-alpine -> 18` (commit 1e5994c) landed on a PG16 data directory and
+18 refused to start, leaving the database in CrashLoopBackOff and taking
+`yggdrasil-api` with it. 18+ stores its cluster in a major-version-specific
+subdirectory and hard-errors on a legacy cluster found at the mount root or at
+`.../data`, which is a *good* failure: the alternative — emptying the volume
+while leaving the mount at `.../data` — makes 18 start happily and write to the
+container filesystem, losing everything on restart.
+
+Resolved by dumping with `pg_dumpall`/`pg_dump -Fc` from a temporary PG16 pod,
+moving the old cluster aside on-volume as `.pg16-orphan`, letting 18 initialise
+into `/var/lib/postgresql/18/docker`, and reloading. Verified table-by-table
+against a row-count inventory taken before the migration. `helm/immich` still
+runs Postgres 16 and carries a warning comment — it will hit the same wall
+whenever its major is bumped.
+
 ### Databases are dumped, not copied
 
 `homelab-common` gains `podAnnotations` support on both workload templates.
@@ -196,16 +213,18 @@ endpoint.
 
 ## Known gaps
 
-- **yggdrasil's Postgres is down** and is not fixed here. `postgres:18` landed
-  on a data directory written by an earlier major and refuses to start
-  (`pg_upgrade` required). `helm/atuin` was corrected to mount the whole
-  `/var/lib/postgresql`, which is the layout 18+ expects; `helm/yggdrasil`
-  still mounts `/var/lib/postgresql/data`. Changing the mount alone would make
-  18 `initdb` a fresh empty cluster over the top, so this needs a deliberate
-  operator pass with a backup in hand. Its backup hook is set to
-  `on-error: Continue` meanwhile, so a down database does not mark every
-  weekly backup PartiallyFailed and destroy the signal from stacks that matter.
-  Flip it to `Fail` once it starts.
+- **The cloud BSL needs a wider IAM policy.** The S3 key was reused from a host
+  cron job that only uploaded a tarball, so it can write but cannot
+  `s3:ListBucket` — and Velero validates a BackupStorageLocation by listing it,
+  so `cloud` sits `Unavailable` and no backup can run. The policy to attach is
+  in `helm/velero/.setup` §1. This is the last thing standing between the
+  cluster and its first successful backup.
+- **The chart's CRD job is disabled** (`upgradeCRDs: false`) because it could
+  not be made to work: it needs a kubectl image that both ships a shell and
+  matches velero's libc, and bitnami's retired catalog was the only thing that
+  did. CRDs now come from the chart's `crds/` directory, which Helm does not
+  upgrade — so a velero chart bump needs a manual CRD apply. See
+  `helm/velero/values.yaml`.
 - **No NetworkPolicies.** See above.
 - **CI cannot vet image contents.** Renovate still auto-merges digest bumps on
   floating `latest`/`main` tags, and ArgoCD's `selfHeal` deploys them. The CI

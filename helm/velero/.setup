@@ -18,6 +18,51 @@ previously was not: that script only scanned `homelab-*` namespaces, so the
 credential needed to *read the backups* existed nowhere but the cluster the
 backups exist to replace. Re-run the export after any key rotation.
 
+### The IAM policy needs widening — Velero needs more than the old cron job did
+
+That key came from a host cron job that only ever uploaded a tarball, so its
+policy grants writes but not `s3:ListBucket`. Velero validates a
+BackupStorageLocation by listing it, so the BSL comes up `Unavailable`:
+
+```
+BackupStorageLocation "cloud" is unavailable: ... api error AccessDenied:
+User: arn:aws:iam::<acct>:user/loki-homelab-backup-service is not authorized
+to perform: s3:ListBucket on resource: "arn:aws:s3:::loki-homelab-backup"
+```
+
+Attach this policy to `loki-homelab-backup-service`. No EC2 permissions are
+needed — this cluster uses Kopia file-system backup, not volume snapshots:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:AbortMultipartUpload",
+        "s3:ListMultipartUploadParts"
+      ],
+      "Resource": ["arn:aws:s3:::loki-homelab-backup/*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": ["arn:aws:s3:::loki-homelab-backup"]
+    }
+  ]
+}
+```
+
+Then confirm it flips to `Available` (revalidation is on a 1-minute loop):
+
+```
+kubectl -n velero get backupstoragelocation cloud
+```
+
 ## 2. The CRD job image — fixed, don't revert
 
 The chart's CRD install/upgrade Job defaults to `docker.io/bitnami/kubectl`
