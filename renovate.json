@@ -2,7 +2,6 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", "docker:pinDigests"],
   "dependencyDashboard": true,
-  "ignorePaths": ["containers/**"],
   "helm-values": {
     "fileMatch": ["^helm/.+/values\\.yaml$"]
   },

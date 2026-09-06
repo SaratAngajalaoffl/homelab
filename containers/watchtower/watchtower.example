@@ -1,7 +1,0 @@
-# Shoutrrr notification URL — pick one service and fill in its scheme.
-# Docs: https://containrrr.dev/shoutrrr/v0.8/services/overview/
-#
-# ntfy example:   WATCHTOWER_NOTIFICATION_URL=ntfy://<topic>@ntfy.sh
-# Discord example: WATCHTOWER_NOTIFICATION_URL=discord://<token>@<webhookid>
-WATCHTOWER_NOTIFICATIONS=shoutrrr
-WATCHTOWER_NOTIFICATION_URL=

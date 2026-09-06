@@ -4,41 +4,45 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-Detached homelab repo at `~/homelab` for self-hosted Docker infrastructure on an Arch Linux desktop. It is separate from `~/dotfiles-arch` (desktop dotfiles) and replaces the legacy `containers/` directory that lived in the flat `~/dotfiles` repo.
+Detached homelab repo at `~/homelab` for self-hosted infrastructure running on a k3s cluster (originally an Arch Linux desktop single-node Docker Compose setup, migrated to Kubernetes per `docs/adr/0004-kubernetes-migration.md`). It is separate from `~/dotfiles-arch` (desktop dotfiles).
 
-The repo owns compose files, env templates (`*.example`), and stack lifecycle scripts. It does **not** own runtime data (`~/storage/homelab/`) or secrets (`*.env`).
+The repo owns Helm charts (`helm/<stack>/`), ArgoCD app-of-apps manifests, and the env/secrets round-trip scripts. It does **not** own runtime data (`~/storage/homelab/`, now backing PVCs via local-path-provisioner) or secrets (plaintext `*.env`/`values.secret.yaml`, or the Sealed Secrets controller's private key).
 
 ## Key commands
 
 ```bash
-# Start all stacks (or one stack by name)
-cd ~/homelab/containers
-./up-all-stacks.sh
-./up-all-stacks.sh arr
+# Deploy: git push to main is the deploy step for every ArgoCD-managed stack —
+# ArgoCD watches helm/argocd/apps/ and reconciles automatically. No manual
+# `helm upgrade --install` for anything already onboarded there.
+git push
 
-# Stop all stacks (or one)
-./down-all-stacks.sh
-./down-all-stacks.sh arr
+# Manual helm invocation — only for bootstrapping a brand-new stack before it
+# has an ArgoCD Application, or for infra ArgoCD doesn't manage (cert-manager,
+# sealed-secrets-controller, nvidia-device-plugin, Traefik, ArgoCD itself).
+helm upgrade --install <stack> ./helm/<stack> -n homelab-<stack> --create-namespace
 
-# Bring up a single stack manually
-docker compose -f ~/homelab/containers/arr/docker-compose.yml up -d --pull always --build
-
-# Export all *.env values to clipboard as JSON nested by file path (human secrets workflow)
+# Export all secrets (*.env leftovers + Sealed Secrets controller key + any
+# not-yet-sealed plaintext Secret) to clipboard as JSON — human secrets workflow
 ./scripts/env/copy_env.sh
+./scripts/k8s-secrets/copy_secrets.sh
 
-# Restore *.env files from JSON (stdin or clipboard)
+# Restore from JSON (stdin or clipboard)
 ./scripts/env/apply_env.sh
+./scripts/k8s-secrets/apply_secrets.sh
 ```
 
 ## Rules for agents
 
-- **Never read, write, or commit `*.env` files** during normal agent work. They are gitignored and contain secrets. Exception: only run `scripts/env/copy_env.sh` or `scripts/env/apply_env.sh` when the user explicitly asks for secrets export/restore.
-- **May update `*.example` files** when adding new required env vars. Keep placeholders empty or clearly marked.
-- **May create or update `.setup` files** for manual bootstrap instructions (see arr).
-- **Follow the storage convention:** config/state → `${HOME}/storage/homelab/homelab-conf/<service>/`; user content → `${HOME}/storage/homelab/homelab-data/<service>/`.
-- **One stack per directory** under `containers/`. Do not merge unrelated services into a single compose file.
-- **Prefer `user: "1000:1000"`** on LinuxServer.io and similar images when bind-mounting under `$HOME`. Some images define their own users (Nextcloud `www-data`, Immich postgres) — read compose comments before overriding.
-- **No host port publishing for HTTP services.** `nginx-proxy-manager` is the only public listener (`:80`/`:443`) — host nginx has been retired. Every HTTP-facing container joins the external `edge` docker network (see `up-all-stacks.sh`, which creates it if missing) and NPM reaches it by container name and container-internal port; do not add a `ports:` entry for a service's web UI. `31xxx` host ports only remain for things that genuinely can't go through nginx: UDP protocols (jellyfin autodiscovery) and VPN-tunnel utility ports (gluetun's HTTP proxy/Shadowsocks/torrent-inbound). Document any new one of those in compose comments. See `containers/nginx-proxy-manager/CONTEXT.md` + `.setup`.
+- **Never read, write, or commit `*.env` / `values.secret.yaml` files, or Sealed Secrets private keys**, during normal agent work. They are gitignored and contain secrets. Exception: only run `scripts/env/copy_env.sh`, `scripts/env/apply_env.sh`, `scripts/k8s-secrets/copy_secrets.sh`, or `scripts/k8s-secrets/apply_secrets.sh` when the user explicitly asks for secrets export/restore.
+- **Never run `kubectl`/`helm` against any context other than the homelab k3s cluster.** Always check `kubectl config current-context` first; the user's kubeconfig may also point at real work EKS clusters, which must never be targeted from this repo's tooling.
+- **May update `values.secret.example.yaml` files** when adding new required secret keys for a stack that hasn't migrated to Sealed Secrets yet. Keep placeholders empty or clearly marked.
+- **May create or update `CONTEXT.md` / non-obvious setup notes** inside a stack's `helm/<stack>/` directory for manual bootstrap instructions that can't be expressed as chart values (see `helm/argocd/CONTEXT.md` for the pattern).
+- **Follow the storage convention:** config/state → PVC pointed at `${HOME}/storage/homelab/homelab-conf/<service>/`; user content → PVC pointed at `${HOME}/storage/homelab/homelab-data/<service>/` (ADR 0002's split, now re-expressed as PVs/PVCs via local-path-provisioner rather than bind mounts).
+- **One Helm chart per stack** under `helm/`, each with its own namespace (`homelab-<stack>`). Do not merge unrelated services into a single chart.
+- **Prefer `runAsUser: 1000`/`fsGroup: 1000`** (the Compose-era `user: "1000:1000"` equivalent) on LinuxServer.io and similar images when a PVC is bound to `$HOME`-derived host paths. Some images define their own users (Nextcloud `www-data`, Immich postgres) — read chart comments before overriding.
+- **No `LoadBalancer`/hostPort exposure for HTTP services.** Traefik (bundled with k3s) + `cert-manager` is the sole ingress path — every HTTP-facing stack ships an `Ingress`/`IngressRoute` in its chart, not a `type: LoadBalancer` Service or hostPort. NetworkPolicies gate which namespaces are reachable from public Ingress routes. See `docs/adr/0004-kubernetes-migration.md` for why `nginx-proxy-manager` was retired rather than rehosted, and its "k3s's bundled Traefik defaults to a `LoadBalancer` Service" consequence note if a fresh k3s install starts hijacking host ports 80/443 again.
+- **New stacks go through ArgoCD, not manual `helm upgrade`,** once `helm/argocd/apps/00-project.yaml`'s AppProject scope covers them — add a `helm/argocd/apps/<stack>.yaml` Application pointing at `helm/<stack>` and let ArgoCD's sync bring it up. See `helm/argocd/CONTEXT.md`.
+- **Image updates arrive as Renovate PRs**, not by manually diffing registries or via a monitor-only tool. `renovate.json` scans `helm/*/values.yaml` for `image.repository`/`image.tag`; minor/patch/digest bumps auto-merge, majors and pinned DB images need manual review. There is no watchtower-equivalent left running in-cluster — Renovate PRs against git are the awareness+remediation mechanism now that ArgoCD makes `git push` the deploy step.
 
 ## Architecture
 
@@ -49,59 +53,73 @@ docker compose -f ~/homelab/containers/arr/docker-compose.yml up -d --pull alway
 ├── README.md              # Human quick start
 ├── CONTEXT.md             # Domain glossary (this file's companion)
 ├── CLAUDE.md              # Agent playbook (this file)
-├── docs/adr/              # Architecture decision records
+├── renovate.json          # Automated image-update PRs against helm/*/values.yaml
+├── docs/adr/               # Architecture decision records
 ├── scripts/
-│   └── env/               # copy_env.sh, apply_env.sh — secrets round-trip
-└── containers/
-    ├── up-all-stacks.sh
-    ├── down-all-stacks.sh
-    ├── arr/               # Has CONTEXT.md + .setup
+│   ├── env/                # copy_env.sh, apply_env.sh — legacy *.env secrets round-trip
+│   └── k8s-secrets/         # copy_secrets.sh, apply_secrets.sh — Sealed Secrets round-trip
+└── helm/
+    ├── homelab-common/     # Shared library chart (Deployment/Service/PVC/Ingress templates)
+    ├── argocd/             # GitOps delivery layer — app-of-apps, see helm/argocd/CONTEXT.md
+    ├── cluster-issuers.yaml # cert-manager ClusterIssuers (not chart-packaged, bootstrap-applied)
+    ├── headlamp/           # Cluster dashboard UI (upstream chart, values-only, no local Chart.yaml)
+    ├── arr/                # Has CONTEXT.md-equivalent knowledge inline in values.yaml comments
+    ├── atuin/
+    ├── hermes/
     ├── immich/
     ├── jellyfin/
-    ├── netbird/           # Has CONTEXT.md + .setup
+    ├── netbird/
     ├── nextcloud/
+    ├── ollama/
+    ├── openclaw/
     ├── portainer/
-    ├── watchtower/       # Has CONTEXT.md + .setup
-    └── webui/
+    ├── searxng/
+    ├── webui/
+    └── yggdrasil/
 ```
 
 ### Storage
 
 | Tree | Holds | Example |
 |------|-------|---------|
-| `homelab-conf/` | Config, DBs, app state | `.../sonarr/config`, `.../nextcloud/app` |
-| `homelab-data/` | Bulk user content | `.../arr/torrents`, `.../immich/server-data` |
+| `homelab-conf/` | Config, DBs, app state (bound via PVC/local-path-provisioner) | `.../sonarr/config`, `.../nextcloud/app` |
+| `homelab-data/` | Bulk user content (bound via PVC/local-path-provisioner) | `.../arr/torrents`, `.../immich/server-data` |
 
 ### Secrets bootstrap
 
-1. `cp <stack>.example <stack>.env` in the stack directory.
-2. Fill in values on the host.
-3. Read `<stack>/.setup` if present for non-obvious steps.
+Per-stack secrets are committed to git as `SealedSecret` manifests (`helm/<stack>/templates/sealed-*.yaml`), encrypted client-side with `kubeseal` against the in-cluster Sealed Secrets controller's public key — decryptable only by that controller. A stack still mid-migration to sealed secrets may instead use a gitignored `values.secret.yaml` copied from a committed `values.secret.example.yaml`.
 
-For machine migration or disaster recovery, the human operator uses `scripts/env/copy_env.sh` (export all `*.env` to JSON via clipboard, nested by file path so same-named keys in different files never collide) and `scripts/env/apply_env.sh` (restore from that JSON into paired `.env` files; also reads old flat-JSON exports for back-compat). Store exported JSON in a vault (e.g. Bitwarden), not in git.
+For machine/cluster migration or disaster recovery, the human operator uses:
+- `scripts/k8s-secrets/copy_secrets.sh` / `apply_secrets.sh` — backs up/restores the Sealed Secrets controller's signing key(s) plus any not-yet-sealed plaintext Secret.
+- `scripts/env/copy_env.sh` / `apply_env.sh` — legacy round-trip for any remaining plaintext `*.env`/`values.secret.yaml` files.
+
+Store exported JSON in a vault (e.g. Bitwarden), not in git.
 
 ### Stacks overview
 
 | Stack | Notes |
 |-------|-------|
-| `arr` | Gluetun VPN sidecar; torrent apps share its network namespace. See `containers/arr/CONTEXT.md`. |
-| `atuin` | Self-hosted Atuin shell history sync server + Postgres, so history merges between the desktop and a MacBook. E2E encrypted client-side. See `containers/atuin/CONTEXT.md` + `.setup`. |
-| `hermes` | Self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent) personal AI assistant; one container multiplexes an OpenAI-compatible API server and a web dashboard. See `containers/hermes/CONTEXT.md`. |
+| `arr` | Gluetun VPN sidecar; all apps share one pod's network namespace (k8s-native equivalent of Compose's `network_mode: "service:gluetun"`). |
+| `atuin` | Self-hosted Atuin shell history sync server + Postgres, so history merges between the desktop and a MacBook. E2E encrypted client-side. Reference pattern for Sealed Secrets adoption. |
+| `hermes` | Self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent) personal AI assistant; one container multiplexes an OpenAI-compatible API server and a web dashboard. |
 | `jellyfin` | Reads media from `homelab-data/arr/media`; Seerr for requests. |
 | `immich` | Pinned image versions; postgres + redis + ML container. |
-| `netbird` | Trimmed self-hosted VPN control plane (`netbird-server` + `dashboard` only) so a laptop can reach this host's SSH port without exposing it to the internet. See `containers/netbird/CONTEXT.md` + `.setup`. |
-| `nextcloud` | Bind mounts need `www-data` ownership — see compose header comment. |
-| `ollama` | Dockerized Ollama server with GPU passthrough (CDI, not `deploy.reservations.devices` — see CONTEXT.md). No auth of its own; the public NPM proxy host enforces an API key via an Advanced-tab nginx snippet. Replaces the old host-native `ollama.service`. See `containers/ollama/CONTEXT.md` + `.setup`. |
-| `openclaw` | Self-hosted [OpenClaw](https://openclaw.ai) personal AI assistant/agent gateway (email, calendar, chat-app channels). Higher blast radius than most stacks — its gateway token grants agent control. See `containers/openclaw/CONTEXT.md` + `.setup`. |
-| `portainer` | Docker socket mount for container management. |
-| `searxng` | Self-hosted SearXNG metasearch engine; shared, key-free web-search backend for `webui`, `openclaw`, and `hermes`. No auth of its own internally; the public NPM proxy host gates it with an Access List (Basic Auth) instead of an API key, since it's a browsable UI. See `containers/searxng/CONTEXT.md` + `.setup`. |
-| `watchtower` | Monitor-only image-update checker (no auto-update); notifies via shoutrrr when a container's registry image has moved past what's running. See `containers/watchtower/CONTEXT.md` + `.setup`. |
-| `webui` | Open WebUI; `OLLAMA_BASE_URL` points to the `ollama` stack container over the `edge` network, `SEARXNG_QUERY_URL` to the `searxng` stack for web search. |
-| `yggdrasil` | Self-hosted deploy of the user's own [yggdrasil-hq/yggdrasil-core](https://github.com/yggdrasil-hq/yggdrasil-core) (AI-orchestrated dev platform, pre-alpha). GHCR images, not built from source. The Orchestrator targets a k8s API (ADR 003 upstream); the k3s cluster and its kubeconfig are configured entirely in-app, not bundled or mounted by this compose project. Project-deployment ingress (`*.apps.<domain>`) is not exposed yet. See `containers/yggdrasil/CONTEXT.md` + `.setup`. |
-| `nginx-proxy-manager` | GUI reverse proxy; sole public listener on `:80`/`:443`, terminates TLS with automatic per-host Let's Encrypt (HTTP-01) certs. Routes to backends by container name over the external `edge` network — no host nginx, no `host.docker.internal` hop. See `containers/nginx-proxy-manager/CONTEXT.md` + `.setup`. |
+| `netbird` | Trimmed self-hosted VPN control plane (`netbird-server` + `dashboard` only) so a laptop can reach this host's SSH port without exposing it to the internet. |
+| `nextcloud` | Bind mounts (now PVCs) need `www-data` ownership — see chart values comments. |
+| `ollama` | GPU passthrough via CDI. No auth of its own; public Ingress enforces an API key via a Traefik middleware. |
+| `openclaw` | Self-hosted [OpenClaw](https://openclaw.ai) personal AI assistant/agent gateway (email, calendar, chat-app channels). Higher blast radius than most stacks — its gateway token grants agent control. |
+| `portainer` | Docker/k8s management UI. |
+| `searxng` | Self-hosted SearXNG metasearch engine; shared, key-free web-search backend for `webui`, `openclaw`, and `hermes`. No auth of its own internally; public Ingress gates it with Basic Auth instead of an API key, since it's a browsable UI. |
+| `webui` | Open WebUI; `OLLAMA_BASE_URL` points to the `ollama` stack over in-cluster DNS, `SEARXNG_QUERY_URL` to the `searxng` stack for web search. |
+| `yggdrasil` | Self-hosted deploy of the user's own [yggdrasil-hq/yggdrasil-core](https://github.com/yggdrasil-hq/yggdrasil-core) (AI-orchestrated dev platform, pre-alpha). GHCR images, not built from source. Shares this same k3s cluster (ADR 0004's rationale #3) — the Orchestrator targets this cluster's API directly. |
+| `argocd` | GitOps delivery layer — app-of-apps managing every stack above via `git push` to `main`. See `helm/argocd/CONTEXT.md`. |
+| `headlamp` | Cluster dashboard UI, installed from the upstream chart (no local `Chart.yaml`). |
+
+`nginx-proxy-manager` and `watchtower` were retired during the migration with no direct replacement chart: Traefik + cert-manager took over ingress/TLS, and Renovate PRs took over image-update awareness.
 
 ## ADRs
 
 - **ADR 0001** (`docs/adr/0001-detached-homelab-repo.md`): Why homelab is a separate repo from dotfiles.
 - **ADR 0002** (`docs/adr/0002-storage-layout.md`): Why homelab-conf and homelab-data are split.
-- **ADR 0003** (`docs/adr/0003-per-stack-compose.md`): Why each service group is its own compose stack.
+- **ADR 0003** (`docs/adr/0003-per-stack-compose.md`): Why each service group was its own Compose stack (superseded by ADR 0004's per-stack Helm chart).
+- **ADR 0004** (`docs/adr/0004-kubernetes-migration.md`): Migration from Docker Compose to k3s/Helm/ArgoCD — the current architecture.

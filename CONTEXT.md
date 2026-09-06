@@ -2,41 +2,36 @@
 
 ## Glossary
 
-**Stack** — a self-contained Docker Compose project in `containers/<name>/`, with its own `docker-compose.yml`, env template, and optional `.setup` instructions. Examples: `arr`, `immich`.
+**Stack** — a self-contained Helm chart in `helm/<name>/`, with its own `Chart.yaml`, `values.yaml`, and templates. Deployed into its own `homelab-<name>` namespace. Examples: `arr`, `immich`. (Pre-migration, a stack was a Docker Compose project in `containers/<name>/` — see `docs/adr/0004-kubernetes-migration.md` for the transition.)
 
-**Compose file** — the `docker-compose.yml` inside a stack directory. Each stack is brought up independently via `docker compose -f <stack>/docker-compose.yml`.
+**Chart** — the Helm chart inside a stack directory (`helm/<name>/Chart.yaml` + `templates/`). Each stack is deployed independently, either by ArgoCD reconciliation or manually via `helm upgrade --install`.
 
-**Env template** — a committed `*.example` file listing required environment variables with empty or placeholder values. Copied to a gitignored `*.env` on the host before first run.
+**`homelab-common`** — the shared library chart (`helm/homelab-common/`) holding common templates (Deployment, Service, PVC, Ingress, standard labels/namespace conventions) so each stack's chart mostly supplies a `values.yaml` rather than hand-writing manifests from scratch.
 
-**Setup manifest** — an optional `.setup` file in a stack directory with plain-text instructions for secrets or manual bootstrap steps that cannot be committed (e.g. VPN keys, API tokens). Read after copying the env template.
+**Sealed Secret** — a `SealedSecret` manifest (`helm/<stack>/templates/sealed-*.yaml`), encrypted client-side with `kubeseal` against the in-cluster Sealed Secrets controller's public key. Safe to commit — only that controller can decrypt it. Replaces the pre-migration `*.env`/`.setup` secrets pattern for any stack that has adopted it (see `helm/atuin` for the reference pattern).
 
-**Env export** — `scripts/env/copy_env.sh`. Discovers all `*.env` files under the repo (or a given search root), and copies one JSON object to the system clipboard nested by file path (relative to the search root) → `{key: value}`. Used to back up secrets to a vault. See **Nested env JSON** below.
+**`values.secret.yaml`** — a gitignored per-stack secrets file (for stacks not yet on Sealed Secrets), copied from a committed `values.secret.example.yaml` template. Direct analog of the old `*.env`/`*.example` pair.
 
-**Env restore** — `scripts/env/apply_env.sh`. Reads the nested JSON from stdin or the clipboard, finds every `*.example` file under the search root, and writes a sibling `*.env` by filling keys from that file's own JSON section. Preserves comments and key order from the example template. Also accepts the old flat JSON shape (see **Nested env JSON** below) for restoring a pre-existing vault export.
+**Secrets export** — `scripts/k8s-secrets/copy_secrets.sh`. Backs up the Sealed Secrets controller's signing key(s) plus any not-yet-sealed plaintext Secret across `homelab-*` namespaces to the clipboard as JSON, for storing in a vault. `scripts/env/copy_env.sh` is the older equivalent for any remaining plaintext `*.env`/`values.secret.yaml` files.
 
-**Nested env JSON** — the export/restore JSON shape: `{ "containers/arr/arr.env": { "KEY": "value" }, ... }`, keyed by file path relative to the search root. Replaced the earlier flat `{ "KEY": "value" }` shape, which silently merged same-named keys from different `*.env` files into one value. `apply_env.sh` still reads the old flat shape for backward compatibility with existing vault exports, but `copy_env.sh` only ever writes the nested shape now.
+**Secrets restore** — `scripts/k8s-secrets/apply_secrets.sh`. Reads the exported JSON (stdin or clipboard) and restores the controller's key(s) plus plaintext secrets into a rebuilt cluster, restarting the controller so it picks up the restored key. Must run right after installing the Sealed Secrets controller, before anything else references it.
 
-**homelab-conf** — host path `${HOME}/storage/homelab/homelab-conf/`. Holds app configuration, databases, and small persistent state. Bind-mounted into containers. Never committed to git.
+**homelab-conf** — host path `${HOME}/storage/homelab/homelab-conf/`. Holds app configuration, databases, and small persistent state. Bound into pods via PVC (local-path-provisioner). Never committed to git.
 
-**homelab-data** — host path `${HOME}/storage/homelab/homelab-data/`. Holds bulk user-generated content (torrents, media libraries, photo libraries, Nextcloud files). Bind-mounted into containers. Never committed to git.
+**homelab-data** — host path `${HOME}/storage/homelab/homelab-data/`. Holds bulk user-generated content (torrents, media libraries, photo libraries, Nextcloud files). Bound into pods via PVC (local-path-provisioner). Never committed to git.
 
-**Orchestration scripts** — `containers/up-all-stacks.sh` and `containers/down-all-stacks.sh`. Iterate over every `containers/*/docker-compose.yml` or target a single stack by name.
+**ArgoCD app-of-apps** — `helm/argocd/root-app.yaml` (the one manually-applied Application) plus `helm/argocd/apps/<stack>.yaml` (one child Application per migrated stack). `git push` to `main` is the deploy step: editing `helm/<stack>/` or `helm/argocd/apps/` and pushing triggers ArgoCD's automated sync (`prune: true, selfHeal: true`). See `helm/argocd/CONTEXT.md`.
 
-**Gluetun** — VPN sidecar container in the arr stack. Provides a shared network namespace (`network_mode: "service:gluetun"`) so torrent-related apps route through ProtonVPN WireGuard. Exposes all arr-stack host ports on the gluetun container.
+**Gluetun** — VPN sidecar container in the `arr` stack's single pod. All arr-suite containers share that pod's network namespace natively (k8s equivalent of Compose's `network_mode: "service:gluetun"`), so every app routes through ProtonVPN WireGuard just by being in the pod.
 
-**VPN-routed service** — a container using `network_mode: "service:gluetun"` so its traffic exits through the VPN tunnel. Includes qBittorrent, Sonarr, Radarr, Prowlarr, FlareSolverr, and Homarr in the arr stack.
+**VPN-routed service** — a container inside the `arr` pod, routed through the Gluetun sidecar's tunnel. Includes qBittorrent, Sonarr, Radarr, Prowlarr, FlareSolverr, and Homarr.
 
-**dockerproxy** — a read-only Docker socket proxy (`tecnativa/docker-socket-proxy`) on host networking. Used by Homarr to inspect containers without mounting the raw socket into the VPN namespace.
+**PUID/PGID (`runAsUser`/`fsGroup`)** — LinuxServer.io images in the `arr` stack run as UID/GID `1000` (k8s `securityContext.runAsUser`/`fsGroup`) to match a typical desktop user's ownership on PVC-backed paths derived from `$HOME`.
 
-**PUID/PGID** — LinuxServer.io images in the arr stack run as `1000:1000` to match a typical desktop user's ownership on bind mounts under `$HOME`.
+**Ingress** — the k8s `Ingress`/`IngressRoute` resource in a stack's chart, handled by Traefik (bundled with k3s) + `cert-manager` for TLS. Replaces `nginx-proxy-manager`'s GUI-based proxy-host config; routing lives in git instead of NPM's SQLite state. See `docs/adr/0004-kubernetes-migration.md`.
 
-**Host port** — the left side of a `ports:` mapping in compose. Reserved for things nginx-proxy-manager can't front: UDP protocols, VPN-tunnel utility ports, and LAN-only debug access. Everything else reaches nginx-proxy-manager over the `edge` network instead.
+**Renovate** — `renovate.json` at repo root. Bot that scans `helm/*/values.yaml` for `image.repository`/`image.tag` pairs and opens a PR per available update, so keeping k3s workloads current is "review and merge a PR" instead of manually diffing registries. Pinned DB/stateful images (Immich, Atuin, Postgres, valkey) get a longer `minimumReleaseAge` and no automerge; floating tags (`latest`/`main`) get digest-only pin PRs instead of tag bumps, since there's no tag to bump. Requires the Renovate GitHub App installed on the repo (or a self-hosted runner). This is the closest equivalent to the retired `watchtower` monitor — awareness now arrives as a PR against git rather than a notification about a running container.
 
-**Nginx Proxy Manager** — `containers/nginx-proxy-manager/`. Sole public listener on the host (`:80`/`:443`); terminates TLS with automatic per-host Let's Encrypt certs and routes to backends by container name over the external `edge` docker network. See its `CONTEXT.md` + `.setup`.
+**netbird** — `helm/netbird/`. Self-hosted mesh VPN control plane (`netbird-server` + `dashboard`), trimmed to just those two — no routing peer, no external IdP, no coturn. Purpose is narrow: let an enrolled laptop reach this host's SSH port over an encrypted overlay network without ever exposing `22/tcp` to the internet. The host itself joins the mesh via a native systemd `netbird` client, not a pod.
 
-**`edge` network** — external docker bridge network joined by nginx-proxy-manager and every HTTP-facing container across every stack. Auto-created by `up-all-stacks.sh` if missing.
-
-**Renovate** — `renovate.json` at repo root. Bot that scans `helm/*/values.yaml` for `image.repository`/`image.tag` pairs and opens a PR per available update, so keeping k3s workloads current is "review and merge a PR" instead of manually diffing registries. Pinned DB/stateful images (Immich, Atuin, Postgres, valkey) get a longer `minimumReleaseAge` and no automerge; floating tags (`latest`/`main`) get digest-only pin PRs instead of tag bumps, since there's no tag to bump. Requires the Renovate GitHub App installed on the repo (or a self-hosted runner) — see `renovate.json` comments and ADR 0004 for the ArgoCD/Helm context this replaces manual tag-watching for.
-
-**netbird** — `containers/netbird/`. Self-hosted mesh VPN control plane (`netbird-server` + `dashboard`), trimmed to just those two containers — no routing peer, no external IdP, no coturn. Purpose is narrow: let an enrolled laptop reach this host's SSH port over an encrypted overlay network without ever exposing `22/tcp` to the internet. The host itself joins the mesh via a native systemd `netbird` client, not a container. See its `CONTEXT.md` + `.setup`.
-
+**k3s / Traefik** — the k3s distribution bundles Traefik as its default ingress controller with a `LoadBalancer` Service (`ServiceLB`/klipper), which will hijack host ports 80/443 from any competing listener the moment k3s installs or upgrades. Must be patched to `ClusterIP` unless Traefik is meant to be the sole public listener (see ADR 0004's consequences section for the incident this caused).

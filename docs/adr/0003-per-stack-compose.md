@@ -1,7 +1,7 @@
 # ADR 0003: Per-stack Docker Compose directories
 
 ## Status
-Accepted
+Superseded by [ADR 0004](0004-kubernetes-migration.md) — the per-stack isolation principle carries over (one Helm chart per stack, one namespace each), but `containers/` and the Compose orchestration scripts described below have been removed from the repo now that every stack runs on k3s.
 
 ## Context
 The homelab runs eight independent service groups (arr, immich, jellyfin, monitoring, netbird, nextcloud, portainer, webui) with different dependencies, env files, and restart policies. A single monolithic `docker-compose.yml` would couple unrelated stacks and make partial updates risky.
