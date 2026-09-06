@@ -7,7 +7,7 @@ namespace: homelab-immich
 server:
   image:
     repository: ghcr.io/immich-app/immich-server
-    tag: "3.1.0"
+    tag: "v3.1.0"
   port: 2283
   env:
     DB_HOSTNAME: immich-immich-database
@@ -25,7 +25,7 @@ server:
 ml:
   image:
     repository: ghcr.io/immich-app/immich-machine-learning
-    tag: "3.1.0"
+    tag: "v3.1.0"
   port: 3003
   persistence:
     - name: cache
