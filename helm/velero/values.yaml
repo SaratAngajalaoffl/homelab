@@ -36,14 +36,21 @@ initContainers:
 # so the Job wedged in Init:ImagePullBackOff, the CRDs were never created, and
 # Velero never installed at all (no server, no node-agent, no Schedule, and
 # `kubectl get backups.velero.io` returned "server doesn't have a resource
-# type"). Pinned to the upstream Kubernetes kubectl image instead, matching
-# this cluster's v1.36.4 exactly. Note registry.k8s.io tags carry a leading
-# "v", which the chart's auto-derived tag does not — so the tag must be set
-# explicitly, not left to the version fallback.
+# type").
+#
+# It must be an image with a SHELL, not just kubectl. The chart's init
+# container runs:
+#     /bin/sh -c 'cp `which sh` /tmp && cp `which kubectl` /tmp'
+# to stage both binaries for the main container. registry.k8s.io/kubectl is
+# distroless and has no /bin/sh, so it pulls fine and then dies with
+# Init:RunContainerError — a second, quieter failure than the pull error.
+# alpine/kubectl carries busybox plus kubectl and satisfies both.
+#
+# Pinned to the cluster's exact version; bump on a k3s major/minor upgrade.
 kubectl:
   image:
-    repository: registry.k8s.io/kubectl
-    tag: v1.36.4
+    repository: alpine/kubectl
+    tag: "1.36.4@sha256:a2cd8ee034cbe04d651e565b3373299b31921de5c2af86490559e21b3e197808"
 
 # Runs the Kopia-based node-agent DaemonSet that does the actual PVC
 # file-system backup/restore work.
