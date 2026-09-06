@@ -1,0 +1,40 @@
+namespace: homelab-netbird
+
+server:
+  image:
+    repository: netbirdio/netbird-server
+    tag: "latest"
+  port: 80
+  args: ["--config", "/etc/netbird/config.yaml"]
+  persistence:
+    - name: data
+      mountPath: /var/lib/netbird
+      size: 2Gi
+      storageClassName: local-path
+  # STUN is raw UDP; Traefik only proxies HTTP(S)/gRPC/websocket over TCP.
+  # Single-node-only host port publish, same carve-out as Compose had.
+  extraPorts:
+    - containerPort: 3478
+      protocol: UDP
+      hostPort: 3478
+  extraVolumes:
+    - name: config
+      secret:
+        secretName: netbird-config
+  extraVolumeMounts:
+    - name: config
+      mountPath: /etc/netbird/config.yaml
+      subPath: config.yaml
+
+dashboard:
+  image:
+    repository: netbirdio/dashboard
+    tag: "latest"
+  port: 80
+  envSecretName: netbird-dashboard-env
+
+ingress:
+  enabled: true
+  host: netbird.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod

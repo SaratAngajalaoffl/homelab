@@ -1,0 +1,42 @@
+namespace: homelab-hermes
+
+server:
+  image:
+    repository: nousresearch/hermes-agent
+    tag: "latest"
+  args: ["gateway", "run"]
+  env:
+    HERMES_DASHBOARD: "1"
+    SEARXNG_BASE_URL: http://searxng-server.homelab-searxng.svc.cluster.local:8080
+    # Missing from the real hermes.env (only found API_SERVER_KEY and the
+    # dashboard basic-auth vars there) — the app defaults its API server to
+    # loopback-only without these, which meant hermes.smugiwara.com's proxy
+    # target was unreachable cross-container even under the old Compose
+    # setup, not just here. See containers/hermes/CONTEXT.md.
+    API_SERVER_ENABLED: "true"
+    API_SERVER_HOST: "0.0.0.0"
+  envSecretName: hermes-secrets
+  persistence:
+    - name: state
+      mountPath: /opt/data
+      size: 5Gi
+      storageClassName: local-path
+  securityContext:
+    fsGroup: 10000
+
+apiPort: 8642
+dashboardPort: 9119
+
+apiIngress:
+  enabled: true
+  host: hermes.smugiwara.com
+  clusterIssuer: letsencrypt-prod
+
+dashboardIngress:
+  enabled: true
+  host: hermes-dashboard.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod
+
+# Set in a gitignored values.secret.yaml, never here — see values.secret.example.yaml
+apiKey: ""

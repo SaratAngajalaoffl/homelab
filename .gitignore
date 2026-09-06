@@ -1,2 +1,5 @@
 *.env
+values.secret.yaml
 containers/netbird/config.yaml
+helm/*/charts/
+helm/*/Chart.lock

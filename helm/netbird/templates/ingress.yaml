@@ -1,0 +1,81 @@
+{{/*
+Custom multi-path Ingress: netbird-server handles the gRPC/websocket/API/oauth2
+paths, netbird-dashboard is the catch-all — replicates the NPM Advanced-tab
+location blocks documented in containers/netbird/npm-advanced-config.txt.
+Traefik proxies gRPC/websocket/HTTP2 natively, no special annotations needed.
+*/}}
+{{- $ing := .Values.ingress -}}
+{{- $serverName := include "homelab-common.fullname" (dict "root" $ "name" "netbird-server") -}}
+{{- $dashName := include "homelab-common.fullname" (dict "root" $ "name" "netbird-dashboard") -}}
+{{- if $ing.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $serverName }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "homelab-common.labels" (dict "root" $ "name" "netbird-server") | nindent 4 }}
+  annotations:
+    {{- if $ing.clusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ $ing.clusterIssuer }}
+    {{- end }}
+spec:
+  ingressClassName: {{ $ing.className | default "traefik" }}
+  tls:
+    - hosts:
+        - {{ $ing.host }}
+      secretName: {{ printf "%s-tls" $serverName }}
+  rules:
+    - host: {{ $ing.host }}
+      http:
+        paths:
+          - path: /relay
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $serverName }}
+                port:
+                  number: {{ .Values.server.port }}
+          - path: /ws-proxy/
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $serverName }}
+                port:
+                  number: {{ .Values.server.port }}
+          - path: /signalexchange.SignalExchange/
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $serverName }}
+                port:
+                  number: {{ .Values.server.port }}
+          - path: /management.ManagementService/
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $serverName }}
+                port:
+                  number: {{ .Values.server.port }}
+          - path: /api/
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $serverName }}
+                port:
+                  number: {{ .Values.server.port }}
+          - path: /oauth2/
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $serverName }}
+                port:
+                  number: {{ .Values.server.port }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $dashName }}
+                port:
+                  number: {{ .Values.dashboard.port }}
+{{- end }}

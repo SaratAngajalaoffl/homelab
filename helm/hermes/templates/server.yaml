@@ -1,0 +1,22 @@
+{{- $v := merge (dict "port" .Values.apiPort "extraPorts" (list (dict "containerPort" (int .Values.dashboardPort)))) .Values.server -}}
+{{ include "homelab-common.deployment" (dict "root" $ "name" "server" "values" $v) }}
+---
+{{ include "homelab-common.service" (dict "root" $ "name" "server" "port" .Values.apiPort) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "homelab-common.fullname" (dict "root" $ "name" "server") }}-dashboard
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "homelab-common.labels" (dict "root" $ "name" "server") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "homelab-common.selectorLabels" (dict "root" $ "name" "server") | nindent 4 }}
+  ports:
+    - port: {{ .Values.dashboardPort }}
+      targetPort: {{ .Values.dashboardPort }}
+      protocol: TCP
+---
+{{ include "homelab-common.pvcs" (dict "root" $ "name" "server" "persistence" .Values.server.persistence) }}

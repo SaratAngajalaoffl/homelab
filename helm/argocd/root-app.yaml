@@ -1,0 +1,28 @@
+# The single "app of apps" ArgoCD Application. Apply this once by hand
+# (kubectl apply -f helm/argocd/root-app.yaml, plus project.yaml); from then
+# on ArgoCD reconciles everything under helm/argocd/apps/ (the AppProject
+# and one child Application per stack) from git — a `git push` is the
+# deploy step for any change in that directory, per docs/adr/0004's
+# "GitOps delivery (ArgoCD)" decision.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:SaratAngajalaoffl/homelab.git
+    targetRevision: main
+    path: helm/argocd/apps
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

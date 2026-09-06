@@ -1,0 +1,3 @@
+{{ include "homelab-common.deployment" (dict "root" $ "name" "netbird-dashboard" "values" .Values.dashboard) }}
+---
+{{ include "homelab-common.service" (dict "root" $ "name" "netbird-dashboard" "port" .Values.dashboard.port) }}

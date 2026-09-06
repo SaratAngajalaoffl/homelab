@@ -1,0 +1,32 @@
+namespace: homelab-portainer
+
+server:
+  image:
+    repository: portainer/portainer-ce
+    tag: "latest"
+  port: 9000
+  persistence:
+    - name: data
+      mountPath: /data
+      size: 1Gi
+      storageClassName: local-path
+  # Preserves visibility into containers running directly on this host
+  # (outside k8s) — same trust model as the Compose bind mount, just
+  # expressed as a hostPath volume. Requires this pod to stay scheduled on
+  # the single node that owns /var/run/docker.sock (true by default here,
+  # since k3s is single-node — revisit if a second node is ever added).
+  extraVolumes:
+    - name: docker-sock
+      hostPath:
+        path: /var/run/docker.sock
+        type: Socket
+  extraVolumeMounts:
+    - name: docker-sock
+      mountPath: /var/run/docker.sock
+
+ingress:
+  enabled: true
+  # Must match the existing NPM proxy host exactly (containers/nginx-proxy-manager/README.md).
+  host: portainer.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod

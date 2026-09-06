@@ -1,0 +1,5 @@
+{{ include "homelab-common.deployment" (dict "root" $ "name" "api" "values" .Values.api) }}
+---
+{{ include "homelab-common.service" (dict "root" $ "name" "api" "port" .Values.api.port) }}
+---
+{{ include "homelab-common.ingress" (dict "root" $ "name" "api" "ingress" .Values.apiIngress "port" .Values.api.port) }}

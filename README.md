@@ -59,6 +59,30 @@ Reads the nested JSON from stdin, or from the clipboard if stdin is empty. Finds
 
 Optional first argument: search root directory (defaults to the git repo root).
 
+## k8s secrets: export and restore
+
+Stacks migrated to k3s (see `docs/adr/0004-kubernetes-migration.md`) keep their secrets as committed `SealedSecret` manifests (`helm/<stack>/templates/sealed-*.yaml`), encrypted against the in-cluster Sealed Secrets controller. Two things still need backing up outside git, same reasoning as `*.env` above: the controller's own signing key (without it, every committed `SealedSecret` becomes permanently undecryptable), and any secret that hasn't been sealed yet.
+
+### Export — `scripts/k8s-secrets/copy_secrets.sh`
+
+Copies a JSON object to the clipboard with the Sealed Secrets controller's signing key(s) plus any not-yet-sealed plaintext Secret across `homelab-*` namespaces. Store it in the same vault as the `*.env` export.
+
+```bash
+./scripts/k8s-secrets/copy_secrets.sh
+```
+
+### Restore — `scripts/k8s-secrets/apply_secrets.sh`
+
+Reads that JSON (stdin or clipboard) and restores the controller's key(s) plus any plaintext secrets into the cluster, restarting the controller so it picks up the restored key. Run right after installing the Sealed Secrets controller on a rebuilt cluster, before anything else references it.
+
+```bash
+./scripts/k8s-secrets/apply_secrets.sh </path/to/export.json
+# or paste JSON into the clipboard, then:
+./scripts/k8s-secrets/apply_secrets.sh
+```
+
+Both scripts default to `~/.kube/k3s-homelab.yaml` (override with `KUBECONFIG_FILE`) — kept deliberately separate from `~/.kube/config`, which may hold unrelated clusters.
+
 ## Stacks
 
 | Stack | Directory | Description |

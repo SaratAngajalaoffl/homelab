@@ -1,0 +1,3 @@
+{{ include "homelab-common.statefulset" (dict "root" $ "name" "immich-database" "values" .Values.db) }}
+---
+{{ include "homelab-common.service" (dict "root" $ "name" "immich-database" "port" .Values.db.port) }}

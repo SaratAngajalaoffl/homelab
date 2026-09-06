@@ -1,0 +1,10 @@
+apiVersion: v2
+name: atuin
+description: Self-hosted Atuin shell history sync server + Postgres (k8s PoC — see docs/adr/0004-kubernetes-migration.md)
+type: application
+version: 0.1.0
+appVersion: "18.19.0"
+dependencies:
+  - name: homelab-common
+    version: "0.1.0"
+    repository: "file://../homelab-common"

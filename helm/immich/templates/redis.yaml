@@ -1,0 +1,3 @@
+{{ include "homelab-common.deployment" (dict "root" $ "name" "immich-redis" "values" .Values.redis) }}
+---
+{{ include "homelab-common.service" (dict "root" $ "name" "immich-redis" "port" .Values.redis.port) }}

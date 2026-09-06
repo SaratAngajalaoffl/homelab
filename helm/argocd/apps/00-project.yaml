@@ -1,0 +1,24 @@
+# AppProject scoping what the "homelab" ArgoCD project may deploy and where.
+# Applied via the root app-of-apps (helm/argocd/root-app.yaml), same as every
+# Application manifest under apps/.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: homelab
+  namespace: argocd
+spec:
+  description: All homelab stacks migrated from Docker Compose to k3s (docs/adr/0004)
+  sourceRepos:
+    - "git@github.com:SaratAngajalaoffl/homelab.git"
+    - "https://kubernetes-sigs.github.io/headlamp/"
+  destinations:
+    - namespace: "homelab-*"
+      server: https://kubernetes.default.svc
+    - namespace: "headlamp"
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

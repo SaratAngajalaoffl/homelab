@@ -1,0 +1,20 @@
+# immich Stack Context
+
+## Glossary
+
+**immich-stack** — compose project `immich-stack` in `containers/immich/`. Self-hosted [Immich](https://immich.app/) photo/video backup (server + machine-learning + Postgres w/ vector extensions + Redis).
+
+**k8s migration** — `~/homelab/helm/immich/` holds this stack's Helm chart, converted per `docs/adr/0004-kubernetes-migration.md`. Four workloads, all via the shared `helm/homelab-common` library chart: `immich-server` (Deployment), `immich-ml` (Deployment, no Ingress — internal only, reached via `IMMICH_MACHINE_LEARNING_URL`), `immich-redis` (Deployment, no persistence — pure cache/queue), `immich-database` (StatefulSet, custom `ghcr.io/immich-app/postgres` image with `vector`/`vchord` extensions, same image pinned as Compose used). This is now the **live production deployment** — the Compose stack is fully stopped; `immich.smugiwara.com` serves off k3s/Traefik with a real Let's Encrypt cert (cutover completed 2026-09-06).
+
+**Data migration (verified)** — real data was migrated, not left on fresh empty volumes:
+- **Postgres**: `pg_dump --no-owner --no-acl --clean --if-exists` from the temporarily-started old container, restored into the k8s StatefulSet's Postgres. Row counts confirmed identical (`asset`: 7063, `user`: 2, `album`: 12) between old and new.
+- **`server-data` (76GB, photos/videos/thumbnails)**: streamed via `tar | kubectl exec ... tar -x` directly into the PVC (not `kubectl cp` — too slow for this volume; not a direct hostPath copy — k3s's `local-path-provisioner` volumes are root-owned under `/var/lib/rancher/k3s/storage/`, no sudo available in-session). **First attempt silently truncated** (`kubectl exec` streaming a multi-GB transfer timed out without surfacing an error — file count came up short: 10347 vs 26601 files). Re-ran the same copy (idempotent — tar overwrites/fills in, no need to clear first); second run matched exactly (26601 files, 76G, plus 5/5 checksums verified on a random sample). **Lesson: never trust a single large `kubectl exec` tar stream without verifying file count + size on both sides afterward — it can exit 0 without actually finishing.**
+- **`model-cache` (786MB)**: same tar-stream approach, single pass, verified (51/51 files matched) — small enough not to hit the truncation issue.
+
+**Secrets** — `immich-db-secrets` (`POSTGRES_USER`/`PASSWORD`/`DB`) and `immich-server-secrets` (`DB_PASSWORD`) are `SealedSecret` manifests (`helm/immich/templates/sealed-*.yaml`), sealed directly via `kubeseal` against freshly-generated passwords — never existed as plaintext `Secret` objects in the cluster at any point (unlike atuin's, which had to be sealed after the fact). This is the preferred pattern going forward: generate + seal in one step (`kubectl create secret ... --dry-run=client -o yaml | kubeseal ... > sealed-*.yaml`), only then `helm install`.
+
+**In-cluster service names** — since the Helm release is named `immich` and none of its components are named exactly `immich`, every Service gets a doubled prefix (`immich-immich-database`, `immich-immich-redis`, `immich-immich-ml`) per `homelab-common.fullname`'s convention — same as atuin's `atuin-atuin-db`. `values.yaml`'s `server.env.DB_HOSTNAME`/`REDIS_HOSTNAME`/`IMMICH_MACHINE_LEARNING_URL` are hardcoded to match these exact names; changing the release name would require updating those too.
+
+**`shm_size` equivalent** — Compose's `shm_size: 128mb` on the `database` service (Postgres needs more than the tiny k8s-default `/dev/shm`) has no direct Deployment/StatefulSet field; replicated via `db.extraVolumes`/`extraVolumeMounts` in `values.yaml` (an `emptyDir` with `medium: Memory, sizeLimit: 128Mi` mounted at `/dev/shm`) — this required extending `helm/homelab-common`'s `_deployment.tpl`/`_statefulset.tpl` to support generic `extraVolumes`/`extraVolumeMounts`, now available to every future stack with a similar need.
+
+**Ingress** — `immich.smugiwara.com` → port 2283. NPM's `client_max_body_size 0;` (nginx-specific 1MB-cap removal) has no Traefik equivalent needed — Traefik imposes no default body-size limit.

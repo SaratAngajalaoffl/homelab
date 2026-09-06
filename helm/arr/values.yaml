@@ -1,0 +1,145 @@
+namespace: homelab-arr
+
+# All apps below run as containers inside ONE pod (see templates/arr-pod.yaml),
+# matching Compose's `network_mode: "service:gluetun"` sidecar trick — a k8s
+# pod's containers already share one network namespace natively, so every
+# app reaches the internet through gluetun's VPN tunnel just by being a
+# container in this pod, with no explicit network_mode needed.
+pod:
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    env:
+      # Kernel wireguard needs net.ipv4.conf.all.src_valid_mark=1, which is
+      # not on this cluster's allowed pod-sysctl list (SysctlForbidden) and
+      # can only be set node-wide via kubelet flags. Userspace wireguard
+      # avoids that requirement entirely, at a small throughput cost.
+      WIREGUARD_IMPLEMENTATION: "userspace"
+      # Auto MTU discovery picked 1400, too high once flannel's VXLAN
+      # overlay overhead is added on top of wireguard's own encapsulation
+      # ("message too long" on send) — pin it lower.
+      WIREGUARD_MTU: "1320"
+      # Manual exec tests (nc/ping/dig) all succeeded through the tunnel —
+      # the actual connection works. Gluetun's own healthcheck was just
+      # racing ahead of the freshly-established tunnel/DNS warm-up and
+      # restarting it in a loop before it ever had a chance to prove itself.
+      # Give it more startup grace and skip its own DNS resolution for the
+      # health target.
+      HEALTH_VPN_DURATION_INITIAL: "30s"
+      HEALTH_TARGET_ADDRESS: "1.1.1.1:443"
+    envSecretName: arr-secrets
+    persistence:
+      name: gluetun-config
+      mountPath: /gluetun
+      size: 1Gi
+      storageClassName: local-path
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    env:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "Asia/Kolkata"
+      WEBUI_PORT: "8080"
+      TORRENTING_PORT: "6881"
+    port: 8080
+    persistence:
+      name: qbittorrent-config
+      mountPath: /config
+      size: 2Gi
+      storageClassName: local-path
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    env:
+      LOG_LEVEL: "info"
+      LOG_HTML: "false"
+      CAPTCHA_SOLVER: "none"
+      TZ: "Europe/London"
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    env:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "Asia/Kolkata"
+    port: 8989
+    persistence:
+      name: sonarr-config
+      mountPath: /config
+      size: 5Gi
+      storageClassName: local-path
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    env:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "Asia/Kolkata"
+    port: 7878
+    persistence:
+      name: radarr-config
+      mountPath: /config
+      size: 5Gi
+      storageClassName: local-path
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    env:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "Asia/Kolkata"
+    port: 9696
+    persistence:
+      name: prowlarr-config
+      mountPath: /config
+      size: 5Gi
+      storageClassName: local-path
+
+  homarr:
+    image: ghcr.io/homarr-labs/homarr:latest
+    env:
+      TZ: "Asia/Kolkata"
+      PUID: "1000"
+      PGID: "1000"
+    envSecretName: arr-secrets
+    port: 7575
+    persistence:
+      configName: homarr-config
+      configMountPath: /config
+      appdataName: homarr-appdata
+      appdataMountPath: /appdata
+      size: 2Gi
+      storageClassName: local-path
+
+# Live-shared arr data tree (231G, torrents + media + usenet) — arr's own
+# containers keep writing to it, so like jellyfin's `media` hostPath mount,
+# this is NOT copied into a PVC (a snapshot would go stale immediately).
+# hostPath only valid on a single-node cluster (true today).
+dataHostPath: /home/mugiwara/storage/homelab/homelab-data/arr
+
+ingress:
+  sonarr:
+    enabled: true
+    host: sonarr.smugiwara.com
+    className: traefik
+    clusterIssuer: letsencrypt-prod
+  radarr:
+    enabled: true
+    host: radarr.smugiwara.com
+    className: traefik
+    clusterIssuer: letsencrypt-prod
+  prowlarr:
+    enabled: true
+    host: prowlarr.smugiwara.com
+    className: traefik
+    clusterIssuer: letsencrypt-prod
+  homarr:
+    enabled: true
+    host: homarr.smugiwara.com
+    className: traefik
+    clusterIssuer: letsencrypt-prod
+  qbittorrent:
+    enabled: true
+    host: qbittorrent.smugiwara.com
+    className: traefik
+    clusterIssuer: letsencrypt-prod

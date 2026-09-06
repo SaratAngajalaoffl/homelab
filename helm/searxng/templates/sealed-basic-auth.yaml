@@ -1,0 +1,13 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: searxng-basic-auth
+  namespace: homelab-searxng
+spec:
+  encryptedData:
+    users: AgBDfr3DIrp/i1alprxKUHDlBryr8GqlWQTnImlAJ3mtwLz/sH5MNz2WK+4q53pksNllgIj2BrLUlPaGO4XKreqKa/uY22KM9+loDE2p71PEAYnr+R3r1tOy3/xwfXrYnxP5+TuUpLUz+mVLavhoADCgKMawaSA9GRQ8SXlquorl2OErhl3SvuQegDqNKzEwnaVRMARVhm7IkcfBV9/hRDeu2/Rl36pQZetfra+0cTNl2HrzbywvAcrXKYzwQKahxXRxZyQyubmOpGxBTso3j0ff86ltzDeqfaKHpOu45x7b6bge37SgyA3nzbufFoXMyGR6QxOZFdZhXVFTp1nE6Lz2/rRfJSUQQ8FNQRvud8tCKrtQwIMslsu3mrr7w8kjuq3Ux1rWWIW6sKuRX0jX5ASjMAoUJ0Zo3kOQMp8V/kEu3yBODG270iIM+FocruOIKpxsusAlKh6wIIC0eOaspfZXvAgGt8jlyrsq9vm+I/oHTfZwR2yODfExLwrF8vHpH0y3AnNyzA9ylCX6MRxy2/vD2FfLkmhNtS1BVXREMQY5SoqFGsEFu6Cu0og+o/2tAWuBDKeEO2hhADvH6ktzddEjr7usvNCRBL+Nx0G/kmCQXNlrcnOa1PgWKNQIiCGH1UyCJ9rWH3Vz9V66dQ9WGNdGkdVkpsCJX6DkKTFfXoXm3rEkgzydHS88i6GhDvkzsO8JvWMtT1TWsMdZLUwkBZJGi5wEkCLCmqphPuFT9yo7ygBo9Q7tAOEF4Qnxn1LNgg==
+  template:
+    metadata:
+      name: searxng-basic-auth
+      namespace: homelab-searxng

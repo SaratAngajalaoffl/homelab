@@ -1,0 +1,3 @@
+{{ include "homelab-common.deployment" (dict "root" $ "name" "orchestrator" "values" .Values.orchestrator) }}
+---
+{{ include "homelab-common.service" (dict "root" $ "name" "orchestrator" "port" .Values.orchestrator.port) }}

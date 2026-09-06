@@ -1,0 +1,262 @@
+{{- $fullname := include "homelab-common.fullname" (dict "root" $ "name" "arr") -}}
+{{- $p := .Values.pod -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "homelab-common.labels" (dict "root" $ "name" "arr") | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "homelab-common.selectorLabels" (dict "root" $ "name" "arr") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "homelab-common.labels" (dict "root" $ "name" "arr") | nindent 8 }}
+    spec:
+      containers:
+        - name: gluetun
+          image: "{{ $p.gluetun.image }}"
+          securityContext:
+            capabilities:
+              add: ["NET_ADMIN", "NET_RAW"]
+          env:
+            {{- range $k, $v := $p.gluetun.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ $p.gluetun.envSecretName }}
+          volumeMounts:
+            - name: gluetun-config
+              mountPath: /gluetun
+            - name: dev-net-tun
+              mountPath: /dev/net/tun
+          readinessProbe:
+            exec:
+              command: ["/gluetun-entrypoint", "healthcheck"]
+            initialDelaySeconds: 15
+            periodSeconds: 15
+
+        - name: qbittorrent
+          image: "{{ $p.qbittorrent.image }}"
+          env:
+            {{- range $k, $v := $p.qbittorrent.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: qbittorrent-config
+              mountPath: /config
+            - name: data
+              mountPath: /data
+
+        - name: flaresolverr
+          image: "{{ $p.flaresolverr.image }}"
+          env:
+            {{- range $k, $v := $p.flaresolverr.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+
+        - name: sonarr
+          image: "{{ $p.sonarr.image }}"
+          env:
+            {{- range $k, $v := $p.sonarr.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: sonarr-config
+              mountPath: /config
+            - name: data
+              mountPath: /data
+
+        - name: radarr
+          image: "{{ $p.radarr.image }}"
+          env:
+            {{- range $k, $v := $p.radarr.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: radarr-config
+              mountPath: /config
+            - name: data
+              mountPath: /data
+
+        - name: prowlarr
+          image: "{{ $p.prowlarr.image }}"
+          env:
+            {{- range $k, $v := $p.prowlarr.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: prowlarr-config
+              mountPath: /config
+
+        - name: homarr
+          image: "{{ $p.homarr.image }}"
+          env:
+            {{- range $k, $v := $p.homarr.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ $p.homarr.envSecretName }}
+          volumeMounts:
+            - name: homarr-config
+              mountPath: {{ $p.homarr.persistence.configMountPath }}
+            - name: homarr-appdata
+              mountPath: {{ $p.homarr.persistence.appdataMountPath }}
+
+      volumes:
+        - name: gluetun-config
+          persistentVolumeClaim:
+            claimName: {{ printf "%s-gluetun-config" $fullname }}
+        - name: qbittorrent-config
+          persistentVolumeClaim:
+            claimName: {{ printf "%s-qbittorrent-config" $fullname }}
+        - name: sonarr-config
+          persistentVolumeClaim:
+            claimName: {{ printf "%s-sonarr-config" $fullname }}
+        - name: radarr-config
+          persistentVolumeClaim:
+            claimName: {{ printf "%s-radarr-config" $fullname }}
+        - name: prowlarr-config
+          persistentVolumeClaim:
+            claimName: {{ printf "%s-prowlarr-config" $fullname }}
+        - name: homarr-config
+          persistentVolumeClaim:
+            claimName: {{ printf "%s-homarr-config" $fullname }}
+        - name: homarr-appdata
+          persistentVolumeClaim:
+            claimName: {{ printf "%s-homarr-appdata" $fullname }}
+        - name: dev-net-tun
+          hostPath:
+            path: /dev/net/tun
+            type: CharDevice
+        - name: data
+          hostPath:
+            path: {{ .Values.dataHostPath }}
+            type: Directory
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ printf "%s-gluetun-config" $fullname }}
+  namespace: {{ .Values.namespace }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: {{ $p.gluetun.persistence.storageClassName }}
+  resources:
+    requests:
+      storage: {{ $p.gluetun.persistence.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ printf "%s-qbittorrent-config" $fullname }}
+  namespace: {{ .Values.namespace }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: {{ $p.qbittorrent.persistence.storageClassName }}
+  resources:
+    requests:
+      storage: {{ $p.qbittorrent.persistence.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ printf "%s-sonarr-config" $fullname }}
+  namespace: {{ .Values.namespace }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: {{ $p.sonarr.persistence.storageClassName }}
+  resources:
+    requests:
+      storage: {{ $p.sonarr.persistence.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ printf "%s-radarr-config" $fullname }}
+  namespace: {{ .Values.namespace }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: {{ $p.radarr.persistence.storageClassName }}
+  resources:
+    requests:
+      storage: {{ $p.radarr.persistence.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ printf "%s-prowlarr-config" $fullname }}
+  namespace: {{ .Values.namespace }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: {{ $p.prowlarr.persistence.storageClassName }}
+  resources:
+    requests:
+      storage: {{ $p.prowlarr.persistence.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ printf "%s-homarr-config" $fullname }}
+  namespace: {{ .Values.namespace }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: {{ $p.homarr.persistence.storageClassName }}
+  resources:
+    requests:
+      storage: {{ $p.homarr.persistence.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ printf "%s-homarr-appdata" $fullname }}
+  namespace: {{ .Values.namespace }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: {{ $p.homarr.persistence.storageClassName }}
+  resources:
+    requests:
+      storage: {{ $p.homarr.persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "homelab-common.labels" (dict "root" $ "name" "arr") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "homelab-common.selectorLabels" (dict "root" $ "name" "arr") | nindent 4 }}
+  ports:
+    - name: qbittorrent
+      port: {{ $p.qbittorrent.port }}
+      targetPort: {{ $p.qbittorrent.port }}
+    - name: sonarr
+      port: {{ $p.sonarr.port }}
+      targetPort: {{ $p.sonarr.port }}
+    - name: radarr
+      port: {{ $p.radarr.port }}
+      targetPort: {{ $p.radarr.port }}
+    - name: prowlarr
+      port: {{ $p.prowlarr.port }}
+      targetPort: {{ $p.prowlarr.port }}
+    - name: homarr
+      port: {{ $p.homarr.port }}
+      targetPort: {{ $p.homarr.port }}

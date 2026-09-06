@@ -1,0 +1,106 @@
+namespace: homelab-yggdrasil
+
+landing:
+  image:
+    repository: ghcr.io/yggdrasil-hq/yggdrasil-landing
+    tag: "latest"
+  port: 3000
+  env:
+    PORT: "3000"
+    HOSTNAME: "0.0.0.0"
+
+web:
+  image:
+    repository: ghcr.io/yggdrasil-hq/yggdrasil-web
+    tag: "latest"
+  port: 3000
+  env:
+    PORT: "3000"
+    HOSTNAME: "0.0.0.0"
+    NEXT_PUBLIC_BASE_PATH: "https://api.yggdrasil.cfd"
+    API_INTERNAL_URL: http://yggdrasil-api:3000
+  envSecretName: yggdrasil-secrets
+
+docusaurus:
+  image:
+    repository: ghcr.io/yggdrasil-hq/yggdrasil-docusaurus
+    tag: "latest"
+  port: 3000
+  env:
+    PORT: "3000"
+    DOCS_BASE_URL: /
+  envSecretName: yggdrasil-secrets
+
+db:
+  image:
+    repository: postgres
+    tag: "16-alpine"
+  port: 5432
+  envSecretName: yggdrasil-secrets
+  persistence:
+    - name: data
+      mountPath: /var/lib/postgresql/data
+      size: 5Gi
+      storageClassName: local-path
+
+minio:
+  image:
+    repository: minio/minio
+    tag: "latest"
+  port: 9000
+  args: ["server", "/data", "--console-address", ":9001"]
+  envSecretName: yggdrasil-secrets
+  extraPorts:
+    - containerPort: 9001
+  persistence:
+    - name: data
+      mountPath: /data
+      size: 10Gi
+      storageClassName: local-path
+
+api:
+  image:
+    repository: ghcr.io/yggdrasil-hq/yggdrasil-api
+    tag: "latest"
+  port: 3000
+  env:
+    PORT: "3000"
+    S3_ENDPOINT: http://yggdrasil-minio:9000
+    S3_REGION: us-east-1
+    S3_FORCE_PATH_STYLE: "true"
+    ORCHESTRATOR_URL: http://yggdrasil-orchestrator:8080
+  envSecretName: yggdrasil-secrets
+
+orchestrator:
+  image:
+    repository: ghcr.io/yggdrasil-hq/yggdrasil-orchestrator
+    tag: "latest"
+  port: 8080
+  env:
+    PORT: "8080"
+    API_INTERNAL_URL: http://yggdrasil-api:3000
+  envSecretName: yggdrasil-secrets
+
+landingIngress:
+  enabled: true
+  host: yggdrasil.cfd
+  className: traefik
+  clusterIssuer: letsencrypt-prod
+
+appIngress:
+  enabled: true
+  host: app.yggdrasil.cfd
+  className: traefik
+  clusterIssuer: letsencrypt-prod
+
+apiIngress:
+  enabled: true
+  host: api.yggdrasil.cfd
+  className: traefik
+  clusterIssuer: letsencrypt-prod
+
+docsIngress:
+  enabled: true
+  host: docs.yggdrasil.cfd
+  className: traefik
+  clusterIssuer: letsencrypt-prod

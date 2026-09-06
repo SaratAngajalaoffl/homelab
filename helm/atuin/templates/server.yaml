@@ -1,0 +1,4 @@
+{{ include "homelab-common.deployment" (dict "root" $ "name" "atuin-server" "values" .Values.server) }}
+---
+{{ include "homelab-common.service" (dict "root" $ "name" "atuin-server" "port" .Values.server.port) }}
+{{ include "homelab-common.pvcs" (dict "root" $ "name" "atuin-server" "persistence" .Values.server.persistence) }}

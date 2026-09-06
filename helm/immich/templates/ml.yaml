@@ -1,0 +1,4 @@
+{{ include "homelab-common.deployment" (dict "root" $ "name" "immich-ml" "values" .Values.ml) }}
+---
+{{ include "homelab-common.service" (dict "root" $ "name" "immich-ml" "port" .Values.ml.port) }}
+{{ include "homelab-common.pvcs" (dict "root" $ "name" "immich-ml" "persistence" .Values.ml.persistence) }}

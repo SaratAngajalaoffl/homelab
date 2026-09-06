@@ -1,0 +1,48 @@
+# Defaults safe to commit. Anything secret (passwords, DB URIs with
+# credentials) is NOT set here — see values.secret.example.yaml and
+# CONTEXT.md for how the corresponding Secret is created out-of-band,
+# same "never commit *.env-equivalent files" rule as the rest of this repo.
+
+namespace: homelab-atuin
+
+server:
+  image:
+    repository: ghcr.io/atuinsh/atuin
+    tag: "18.19.0"
+  port: 8888
+  # Compose's `command: start` only overrides CMD, leaving the image's
+  # entrypoint (atuin binary) intact. k8s `command:` overrides the
+  # entrypoint itself, so the equivalent here is `args`, not `command`.
+  args: ["start"]
+  env:
+    ATUIN_HOST: "0.0.0.0"
+    ATUIN_PORT: "8888"
+  # Secret must provide ATUIN_DB_URI (and ATUIN_OPEN_REGISTRATION if you
+  # want it settable without a chart change) — see values.secret.example.yaml.
+  envSecretName: atuin-server-secrets
+  persistence:
+    - name: config
+      mountPath: /config
+      size: 1Gi
+      storageClassName: local-path
+
+db:
+  image:
+    repository: postgres
+    tag: "18"
+  port: 5432
+  # Secret must provide POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB.
+  envSecretName: atuin-db-secrets
+  persistence:
+    - name: data
+      mountPath: /var/lib/postgresql
+      size: 5Gi
+      storageClassName: local-path
+
+ingress:
+  enabled: true
+  # Must match the existing NPM proxy host exactly (containers/nginx-proxy-manager/README.md)
+  # so the public domain doesn't change when this stack cuts over from NPM to Traefik.
+  host: atuin.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod

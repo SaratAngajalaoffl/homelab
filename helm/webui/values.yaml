@@ -1,0 +1,28 @@
+namespace: homelab-webui
+
+server:
+  image:
+    repository: ghcr.io/open-webui/open-webui
+    tag: "main"
+  port: 8080
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+  env:
+    OLLAMA_BASE_URL: http://ollama-server.homelab-ollama.svc.cluster.local:11434
+    DATA_DIR: /data
+    ENABLE_WEB_SEARCH: "true"
+    WEB_SEARCH_ENGINE: searxng
+    SEARXNG_QUERY_URL: "http://searxng-server.homelab-searxng.svc.cluster.local:8080/search?q=<query>"
+  envSecretName: webui-secrets
+  persistence:
+    - name: data
+      mountPath: /data
+      size: 5Gi
+      storageClassName: local-path
+
+ingress:
+  enabled: true
+  host: chat.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod

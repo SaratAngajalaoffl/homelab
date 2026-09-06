@@ -1,0 +1,24 @@
+namespace: homelab-searxng
+
+server:
+  image:
+    repository: searxng/searxng
+    tag: "latest"
+  port: 8080
+  env:
+    SEARXNG_BASE_URL: https://websearch.smugiwara.com/
+    UWSGI_WORKERS: "4"
+    UWSGI_THREADS: "4"
+  persistence:
+    - name: config
+      mountPath: /etc/searxng
+      size: 512Mi
+      storageClassName: local-path
+
+ingress:
+  enabled: true
+  host: websearch.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: homelab-searxng-basic-auth@kubernetescrd

@@ -1,0 +1,54 @@
+{{/*
+Ollama has no auth of its own; the public endpoint needs the same bearer-token
+gate NPM's Advanced-tab nginx snippet provided. Traefik has no built-in exact
+header-match middleware, so this uses IngressRoute's HeaderRegexp condition
+directly instead of a plain Ingress + homelab-common.ingress helper (which
+would forward every request unauthenticated).
+
+The token itself is deliberately NOT a k8s Secret: it has to appear as a
+literal string in the IngressRoute's routing rule, which Traefik can't
+source from a Secret reference. It's passed in via a gitignored
+values.secret.yaml (see values.secret.example.yaml), same as the pre-Sealed-
+Secrets convention for values that can't be expressed as a real k8s Secret --
+`helm upgrade -f values.secret.yaml` at install/upgrade time, never
+committed.
+
+TLS: a standalone cert-manager Certificate requests the cert independent of
+any Ingress object (IngressRoute doesn't get the cert-manager.io/cluster-
+issuer annotation shim a plain Ingress does).
+*/}}
+{{- $ing := .Values.ingress -}}
+{{- $fullname := include "homelab-common.fullname" (dict "root" $ "name" "server") -}}
+{{- if $ing.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $fullname }}-tls
+  namespace: {{ .Values.namespace }}
+spec:
+  secretName: {{ $fullname }}-tls
+  dnsNames:
+    - {{ $ing.host }}
+  issuerRef:
+    name: {{ $ing.clusterIssuer }}
+    kind: ClusterIssuer
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "homelab-common.labels" (dict "root" $ "name" "server") | nindent 4 }}
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`{{ $ing.host }}`) && HeaderRegexp(`Authorization`, `^Bearer {{ .Values.apiKey }}$`)
+      kind: Rule
+      services:
+        - name: {{ $fullname }}
+          port: {{ .Values.server.port }}
+  tls:
+    secretName: {{ $fullname }}-tls
+{{- end }}

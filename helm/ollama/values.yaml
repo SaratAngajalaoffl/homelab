@@ -1,0 +1,34 @@
+namespace: homelab-ollama
+
+server:
+  image:
+    repository: ollama/ollama
+    tag: "latest"
+  port: 11434
+  env:
+    OLLAMA_HOST: "0.0.0.0:11434"
+    # Same override as Compose — qwen3.6:35b's own reasoning burns thousands
+    # of tokens before the final answer; Ollama's VRAM-based auto-sizing
+    # picks 4096 by default for this model, which truncates before any
+    # content comes out. See containers/ollama/CONTEXT.md.
+    OLLAMA_CONTEXT_LENGTH: "32768"
+  # Requires the "nvidia" RuntimeClass + nvidia-device-plugin DaemonSet
+  # installed on the cluster first (host-level containerd config change,
+  # done by the user — see .setup-equivalent instructions given out of repo).
+  runtimeClassName: nvidia
+  resources:
+    limits:
+      nvidia.com/gpu: 1
+  persistence:
+    - name: data
+      mountPath: /root/.ollama
+      size: 50Gi
+      storageClassName: local-path
+
+ingress:
+  enabled: true
+  host: infer.smugiwara.com
+  clusterIssuer: letsencrypt-prod
+
+# Set in a gitignored values.secret.yaml, never here — see values.secret.example.yaml
+apiKey: ""

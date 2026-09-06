@@ -1,0 +1,37 @@
+namespace: homelab-nextcloud
+
+server:
+  image:
+    repository: nextcloud
+    tag: "latest"
+  port: 80
+  # Official image runs as www-data (uid 33); fsGroup matches host bind-mount
+  # ownership (also uid 33 / gid 33) so PVC data is group-writable the same way.
+  securityContext:
+    fsGroup: 33
+  env:
+    TZ: UTC
+    NEXTCLOUD_ADMIN_USER: admin
+    NEXTCLOUD_TRUSTED_DOMAINS: "localhost 127.0.0.1 cloud.smugiwara.com"
+    OVERWRITEPROTOCOL: https
+    OVERWRITECLIURL: https://cloud.smugiwara.com
+    OVERWRITEHOST: cloud.smugiwara.com
+  envSecretName: nextcloud-secrets
+  persistence:
+    - name: app
+      mountPath: /var/www/html
+      size: 5Gi
+      storageClassName: local-path
+    - name: data
+      mountPath: /var/www/html/data
+      size: 10Gi
+      storageClassName: local-path
+
+ingress:
+  enabled: true
+  host: cloud.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod
+  # No body-size annotation needed: unlike NPM's nginx (which needed
+  # `client_max_body_size 0;`), Traefik has no default request body size
+  # limit, so large Nextcloud uploads work with no extra config.

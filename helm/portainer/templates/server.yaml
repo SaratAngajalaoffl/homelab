@@ -1,0 +1,4 @@
+{{ include "homelab-common.deployment" (dict "root" $ "name" "portainer-server" "values" .Values.server) }}
+---
+{{ include "homelab-common.service" (dict "root" $ "name" "portainer-server" "port" .Values.server.port) }}
+{{ include "homelab-common.pvcs" (dict "root" $ "name" "portainer-server" "persistence" .Values.server.persistence) }}

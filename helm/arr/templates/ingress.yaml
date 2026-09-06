@@ -1,0 +1,34 @@
+{{- $fullname := include "homelab-common.fullname" (dict "root" $ "name" "arr") -}}
+{{- range $key, $ing := .Values.ingress }}
+{{- if $ing.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ printf "%s-%s" $fullname $key }}
+  namespace: {{ $.Values.namespace }}
+  labels:
+    {{- include "homelab-common.labels" (dict "root" $ "name" "arr") | nindent 4 }}
+  annotations:
+    {{- if $ing.clusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ $ing.clusterIssuer }}
+    {{- end }}
+spec:
+  ingressClassName: {{ $ing.className | default "traefik" }}
+  tls:
+    - hosts:
+        - {{ $ing.host }}
+      secretName: {{ printf "%s-%s-tls" $fullname $key }}
+  rules:
+    - host: {{ $ing.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullname }}
+                port:
+                  number: {{ index $.Values.pod $key "port" }}
+{{- end }}
+{{- end }}

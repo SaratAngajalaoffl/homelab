@@ -1,0 +1,1 @@
+{{ include "homelab-common.ingress" (dict "root" $ "name" "immich-server" "ingress" .Values.ingress "port" .Values.server.port) }}

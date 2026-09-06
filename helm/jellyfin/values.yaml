@@ -1,0 +1,60 @@
+namespace: homelab-jellyfin
+
+jellyfin:
+  image:
+    repository: jellyfin/jellyfin
+    tag: "latest"
+  port: 8096
+  env:
+    JELLYFIN_PublishedServerUrl: https://jellyfin.smugiwara.com
+  persistence:
+    - name: config
+      mountPath: /config
+      size: 5Gi
+      storageClassName: local-path
+    - name: cache
+      mountPath: /cache
+      size: 2Gi
+      storageClassName: local-path
+  # Live-shared with the still-Compose `arr` stack (sonarr/radarr/qbittorrent,
+  # migrating last per docs/adr/0004-kubernetes-migration.md due to gluetun's
+  # VPN networking) — NOT copied into a PVC, since arr keeps writing new
+  # downloads here. A PVC snapshot would go stale immediately. hostPath keeps
+  # this pod reading the exact same live directory arr's containers write to.
+  # Only valid on a single-node cluster (true today) — revisit if a second
+  # node is ever added.
+  extraVolumes:
+    - name: media
+      hostPath:
+        path: /home/mugiwara/storage/homelab/homelab-data/arr/media
+        type: Directory
+  extraVolumeMounts:
+    - name: media
+      mountPath: /data/media
+
+seerr:
+  image:
+    repository: ghcr.io/seerr-team/seerr
+    tag: "latest"
+  port: 5055
+  env:
+    LOG_LEVEL: debug
+    TZ: Asia/Kolkata
+    PORT: "5055"
+  persistence:
+    - name: config
+      mountPath: /app/config
+      size: 1Gi
+      storageClassName: local-path
+
+jellyfinIngress:
+  enabled: true
+  host: jellyfin.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod
+
+seerrIngress:
+  enabled: true
+  host: seerr.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod

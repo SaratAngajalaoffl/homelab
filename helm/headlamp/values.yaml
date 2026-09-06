@@ -1,0 +1,39 @@
+# Third-party infra, installed from its own upstream chart (not authored
+# here), per docs/adr/0004-kubernetes-migration.md's "Workload packaging"
+# decision — same pattern as cert-manager/sealed-secrets/nvidia-device-plugin.
+#
+# Install/upgrade:
+#   helm repo add headlamp https://kubernetes-sigs.github.io/headlamp/
+#   helm upgrade --install headlamp headlamp/headlamp -n headlamp --create-namespace -f helm/headlamp/values.yaml
+#
+# Login: token-based (default, no OIDC configured). Generate a token for the
+# cluster-admin-bound service account this chart creates:
+#   kubectl create token headlamp -n headlamp --duration=24h
+# Paste that token into Headlamp's login screen. Sessions expire per
+# config.sessionTTL below and need a fresh token each time.
+
+config:
+  # Read-only cluster-admin view/edit access — this is a single-user homelab
+  # dashboard, not multi-tenant, so no OIDC/per-user auth is configured.
+  # Revisit (real auth, RBAC scoping) before ever sharing cluster access
+  # with anyone else, e.g. yggdrasil's future users.
+  sessionTTL: 86400
+
+clusterRoleBinding:
+  create: true
+  clusterRoleName: cluster-admin
+
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: headlamp.smugiwara.com
+      paths:
+        - path: /
+          type: Prefix
+  tls:
+    - secretName: headlamp-tls
+      hosts:
+        - headlamp.smugiwara.com

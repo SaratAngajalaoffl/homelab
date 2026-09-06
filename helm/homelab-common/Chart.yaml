@@ -1,0 +1,5 @@
+apiVersion: v2
+name: homelab-common
+description: Shared library chart for homelab-<stack> Helm charts (Deployment, StatefulSet, Service, PVC, Ingress templates + label conventions)
+type: library
+version: 0.1.0

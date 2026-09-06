@@ -1,0 +1,4 @@
+{{ include "homelab-common.deployment" (dict "root" $ "name" "minio" "values" .Values.minio) }}
+---
+{{ include "homelab-common.service" (dict "root" $ "name" "minio" "port" .Values.minio.port) }}
+{{ include "homelab-common.pvcs" (dict "root" $ "name" "minio" "persistence" .Values.minio.persistence) }}

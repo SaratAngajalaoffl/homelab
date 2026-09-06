@@ -1,0 +1,10 @@
+apiVersion: v2
+name: arr
+description: Torrent/media-automation stack (gluetun VPN + qbittorrent/sonarr/radarr/prowlarr/flaresolverr/homarr) as one multi-container pod
+type: application
+version: 0.1.0
+appVersion: "latest"
+dependencies:
+  - name: homelab-common
+    version: "0.1.0"
+    repository: "file://../homelab-common"

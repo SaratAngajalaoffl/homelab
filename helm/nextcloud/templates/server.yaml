@@ -1,0 +1,6 @@
+{{ include "homelab-common.deployment" (dict "root" $ "name" "nextcloud-server" "values" .Values.server) }}
+---
+{{ include "homelab-common.service" (dict "root" $ "name" "nextcloud-server" "port" .Values.server.port) }}
+{{ include "homelab-common.pvcs" (dict "root" $ "name" "nextcloud-server" "persistence" .Values.server.persistence) }}
+---
+{{ include "homelab-common.ingress" (dict "root" $ "name" "nextcloud-server" "ingress" .Values.ingress "port" .Values.server.port) }}

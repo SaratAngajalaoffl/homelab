@@ -1,0 +1,40 @@
+{{/*
+Bearer-token gated API IngressRoute — same pattern as helm/ollama/templates/ingress.yaml.
+The token has to be a literal in Traefik's routing rule, so it's passed via
+a gitignored values.secret.yaml (see values.secret.example.yaml), not a k8s Secret.
+*/}}
+{{- $ing := .Values.apiIngress -}}
+{{- $fullname := include "homelab-common.fullname" (dict "root" $ "name" "server") -}}
+{{- if $ing.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $fullname }}-api-tls
+  namespace: {{ .Values.namespace }}
+spec:
+  secretName: {{ $fullname }}-api-tls
+  dnsNames:
+    - {{ $ing.host }}
+  issuerRef:
+    name: {{ $ing.clusterIssuer }}
+    kind: ClusterIssuer
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ $fullname }}-api
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "homelab-common.labels" (dict "root" $ "name" "server") | nindent 4 }}
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`{{ $ing.host }}`) && HeaderRegexp(`Authorization`, `^Bearer {{ .Values.apiKey }}$`)
+      kind: Rule
+      services:
+        - name: {{ $fullname }}
+          port: {{ .Values.apiPort }}
+  tls:
+    secretName: {{ $fullname }}-api-tls
+{{- end }}

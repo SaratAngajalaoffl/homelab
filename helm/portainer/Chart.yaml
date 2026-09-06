@@ -1,0 +1,10 @@
+apiVersion: v2
+name: portainer
+description: Docker management UI, with local docker.sock access preserved via hostPath
+type: application
+version: 0.1.0
+appVersion: "latest"
+dependencies:
+  - name: homelab-common
+    version: "0.1.0"
+    repository: "file://../homelab-common"

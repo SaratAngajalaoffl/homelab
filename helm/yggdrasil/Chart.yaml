@@ -1,0 +1,10 @@
+apiVersion: v2
+name: yggdrasil
+description: yggdrasil-hq/yggdrasil-core control plane (landing, web, docs, api, orchestrator, postgres, minio)
+type: application
+version: 0.1.0
+appVersion: "latest"
+dependencies:
+  - name: homelab-common
+    version: "0.1.0"
+    repository: "file://../homelab-common"

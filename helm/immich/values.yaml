@@ -1,0 +1,73 @@
+# Defaults safe to commit. DB_PASSWORD/POSTGRES_PASSWORD are NOT here —
+# see templates/sealed-*.yaml (SealedSecret, encrypted, safe to commit) and
+# containers/immich/CONTEXT.md for rotation instructions.
+
+namespace: homelab-immich
+
+server:
+  image:
+    repository: ghcr.io/immich-app/immich-server
+    tag: "v2.6.3"
+  port: 2283
+  env:
+    DB_HOSTNAME: immich-immich-database
+    DB_USERNAME: immich
+    DB_DATABASE_NAME: immich
+    REDIS_HOSTNAME: immich-immich-redis
+    IMMICH_MACHINE_LEARNING_URL: http://immich-immich-ml:3003
+  envSecretName: immich-server-secrets
+  persistence:
+    - name: data
+      mountPath: /data
+      size: 100Gi
+      storageClassName: local-path
+
+ml:
+  image:
+    repository: ghcr.io/immich-app/immich-machine-learning
+    tag: "v2.6.3"
+  port: 3003
+  persistence:
+    - name: cache
+      mountPath: /cache
+      size: 5Gi
+      storageClassName: local-path
+
+redis:
+  image:
+    repository: docker.io/valkey/valkey
+    tag: "9"
+  port: 6379
+
+db:
+  image:
+    repository: ghcr.io/immich-app/postgres
+    tag: "14-vectorchord0.4.3-pgvectors0.2.0"
+  port: 5432
+  env:
+    POSTGRES_INITDB_ARGS: "--data-checksums"
+  envSecretName: immich-db-secrets
+  persistence:
+    - name: data
+      mountPath: /var/lib/postgresql/data
+      size: 30Gi
+      storageClassName: local-path
+  # Compose's `shm_size: 128mb` equivalent — Postgres needs more than k8s's
+  # tiny default /dev/shm (64Mi total node-wide tmpfs) for larger queries.
+  extraVolumes:
+    - name: dshm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 128Mi
+  extraVolumeMounts:
+    - name: dshm
+      mountPath: /dev/shm
+
+ingress:
+  enabled: true
+  # Must match the existing NPM proxy host exactly (containers/nginx-proxy-manager/README.md).
+  host: immich.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod
+  # NPM's `client_max_body_size 0;` (nginx-specific, removes its 1MB default cap)
+  # has no Traefik equivalent needed — Traefik imposes no default body-size limit.
