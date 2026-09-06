@@ -1,0 +1,74 @@
+# velero bootstrap
+
+## 1. Cloud bucket/region — done
+
+`helm/velero/values.yaml` `backupStorageLocation[0]` (name: `cloud`) points
+at `loki-homelab-backup` / `ap-south-1`, and the `velero` namespace +
+`velero-cloud-credentials` Secret (key `cloud`, AWS-credentials-file blob)
+already exist in-cluster — reused the access key from an older host-cron
+tar+gpg+S3 backup job, created directly via `kubectl` (never written to a
+file that outlived the command, never committed). Nothing left to do here
+unless that key is rotated.
+
+## 2. Create the local credential Secret (never committed)
+
+Velero's AWS plugin expects the credential Secret to hold one key (`cloud`)
+whose value is a full AWS-credentials-file blob, `[default]` profile.
+
+Local (backup-minio — same MINIO_ROOT_USER/PASSWORD set up in
+`helm/backup-minio/.setup`):
+
+```
+cat > /tmp/velero-local-creds <<'EOF'
+[default]
+aws_access_key_id=<MINIO_ROOT_USER>
+aws_secret_access_key=<MINIO_ROOT_PASSWORD>
+EOF
+kubectl -n velero create secret generic velero-local-credentials \
+  --from-file=cloud=/tmp/velero-local-creds
+shred -u /tmp/velero-local-creds
+```
+
+## 3. Install the velero CLI (for manual backup/restore commands)
+
+```
+# https://velero.io/docs/latest/basic-install/#install-the-cli
+```
+
+## The four jobs
+
+**Cloud backup — automatic.** The `cloud-weekly` Schedule in values.yaml
+runs `0 3 */7 * *` (every 7 days, 03:00) against the `cloud` BSL, `includedNamespaces: ["*"]`
+(so every `homelab-*` PVC-backed namespace), 30-day TTL. Trigger one
+out-of-band the same way:
+
+```
+velero backup create cloud-manual-$(date +%Y%m%d) --storage-location cloud
+```
+
+**Cloud restore — manual, always.**
+
+```
+velero backup get                                    # find the backup name
+velero restore create --from-backup <backup-name>
+```
+
+**Local (hard-drive) backup — manual only, no Schedule.**
+
+```
+velero backup create local-$(date +%Y%m%d) --storage-location local
+```
+
+**Local restore — manual.**
+
+```
+velero backup get --storage-location local
+velero restore create --from-backup <backup-name>
+```
+
+## Scope note
+
+`arr`'s media/torrents tree (`homelab-arr`) is a hostPath mount, not a PVC
+(see `helm/arr/values.yaml` comment on it) — Velero's fs-backup only
+captures PVC-backed pod volumes, so it's excluded automatically. No
+per-namespace exclusion needed.

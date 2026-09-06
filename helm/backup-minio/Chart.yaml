@@ -1,0 +1,10 @@
+apiVersion: v2
+name: backup-minio
+description: MinIO gateway exposing the /run/media/mugiwara/munin external hard drive as an S3-compatible bucket, so Velero can use it as a local BackupStorageLocation
+type: application
+version: 0.1.0
+appVersion: "latest"
+dependencies:
+  - name: homelab-common
+    version: "0.1.0"
+    repository: "file://../homelab-common"

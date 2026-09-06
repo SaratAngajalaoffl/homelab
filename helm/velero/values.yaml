@@ -1,0 +1,70 @@
+# Third-party infra, installed from its own upstream chart (not authored
+# here) — same pattern as headlamp/cert-manager/sealed-secrets, see
+# helm/argocd/CONTEXT.md. Backs the four backup/restore jobs:
+#   - cloud backup: automatic, Schedule below runs every 7 days
+#   - cloud restore: manual (`velero restore create`, see .setup)
+#   - local (hard-drive) backup: manual only, on purpose — no Schedule for it
+#   - local restore: manual (`velero restore create`, see .setup)
+#
+# Install/upgrade:
+#   helm repo add vmware-tanzu https://vmware-tanzu.github.io/helm-charts
+#   helm upgrade --install velero vmware-tanzu/velero -n velero --create-namespace -f helm/velero/values.yaml
+#
+# Both BackupStorageLocations are S3-compatible object stores — Velero has
+# no plain-filesystem BSL, so the local hard drive is fronted by the
+# backup-minio stack (helm/backup-minio) which exposes it as an S3 bucket.
+# PVCs are captured via node-agent (Kopia) file-system backup, not volume
+# snapshots — local-path-provisioner has no CSI snapshot support on this
+# single-node cluster.
+
+initContainers:
+  - name: velero-plugin-for-aws
+    image: velero/velero-plugin-for-aws:v1.10.0
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+# Runs the Kopia-based node-agent DaemonSet that does the actual PVC
+# file-system backup/restore work.
+deployNodeAgent: true
+
+# credentials.existingSecret only covers a single Secret; each BSL below
+# points at its own Secret via configuration.backupStorageLocation[].credential
+# instead, so this stays disabled.
+credentials:
+  useSecret: false
+
+configuration:
+  backupStorageLocation:
+    - name: cloud
+      provider: aws
+      default: true
+      bucket: loki-homelab-backup
+      config:
+        region: ap-south-1
+      credential:
+        name: velero-cloud-credentials
+        key: cloud
+    - name: local
+      provider: aws
+      bucket: velero-local
+      config:
+        region: minio
+        s3Url: http://backup-minio.homelab-backup-minio.svc.cluster.local:9000
+        s3ForcePathStyle: "true"
+      credential:
+        name: velero-local-credentials
+        key: cloud
+  # No volumeSnapshotLocation — see comment above, fs-backup covers PVCs.
+  defaultVolumesToFsBackup: true
+
+schedules:
+  cloud-weekly:
+    disabled: false
+    schedule: "0 3 */7 * *"
+    template:
+      storageLocation: cloud
+      ttl: "720h0m0s"
+      includedNamespaces:
+        - "*"
