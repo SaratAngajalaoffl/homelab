@@ -8,7 +8,7 @@ namespace: homelab-atuin
 server:
   image:
     repository: ghcr.io/atuinsh/atuin
-    tag: "18.19.0"
+    tag: "18.21.0@sha256:38c6c323c6d3864250dc345dcf9d41b7a408ee6e33a7cc3cde44b6ffe9f64a02"
   port: 8888
   # Compose's `command: start` only overrides CMD, leaving the image's
   # entrypoint (atuin binary) intact. k8s `command:` overrides the
