@@ -145,9 +145,8 @@ spec:
             path: /dev/net/tun
             type: CharDevice
         - name: data
-          hostPath:
-            path: {{ .Values.dataHostPath }}
-            type: Directory
+          persistentVolumeClaim:
+            claimName: {{ printf "%s-arr-data" $fullname }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -232,6 +231,18 @@ spec:
   resources:
     requests:
       storage: {{ $p.homarr.persistence.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ printf "%s-arr-data" $fullname }}
+  namespace: {{ .Values.namespace }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: {{ .Values.data.persistence.storageClassName }}
+  resources:
+    requests:
+      storage: {{ .Values.data.persistence.size }}
 ---
 apiVersion: v1
 kind: Service
