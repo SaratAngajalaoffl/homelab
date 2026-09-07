@@ -43,10 +43,17 @@ pvcRoot: /var/lib/rancher/k3s/storage
 driveHostPath: /run/media/mugiwara/munin
 resticRepoSubpath: restic
 
+# Keep the last two snapshots, nothing else. restic's --keep-last is a true
+# count-based policy: `forget` runs only after a SUCCESSFUL backup, so a failed
+# or skipped run can never expire what is already on the drive. That is the
+# important difference from Velero's side of this (see the ttl note in
+# helm/velero/values.yaml) — there, retention is time-based and expires on
+# schedule whether or not new backups are still being produced.
+#
+# Was keepDaily 7 / keepWeekly 5 / keepMonthly 6, which on a weekly cadence
+# retained roughly seven recent snapshots plus about six monthly ones.
 retention:
-  keepDaily: 7
-  keepWeekly: 5
-  keepMonthly: 6
+  keepLast: 2
 
 # Dead-man's-switch over the velero cloud backup — see templates/watchdog.yaml.
 # Lives in this stack rather than helm/velero because velero is a values-only

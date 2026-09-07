@@ -83,12 +83,10 @@ spec:
                     --exclude-caches \
                     --one-file-system
 
-                  echo "Pruning old snapshots ..."
+                  echo "Pruning old snapshots (keeping last {{ .Values.retention.keepLast }}) ..."
                   restic forget \
                     --tag homelab \
-                    --keep-daily {{ .Values.retention.keepDaily }} \
-                    --keep-weekly {{ .Values.retention.keepWeekly }} \
-                    --keep-monthly {{ .Values.retention.keepMonthly }} \
+                    --keep-last {{ .Values.retention.keepLast }} \
                     --prune
 
                   echo "Verifying repository structure ..."

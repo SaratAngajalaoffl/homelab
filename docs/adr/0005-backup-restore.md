@@ -58,8 +58,8 @@ node would have meant backups in a bucket nobody could authenticate to.
 
 **Two tools, one for each destination.**
 
-- **Cloud — Velero.** One `BackupStorageLocation` (`cloud`, S3 `ap-south-1`),
-  one automatic weekly Schedule (`0 3 * * 0`), 30-day TTL, all namespaces.
+- **Cloud — Velero.** One `BackupStorageLocation` (`cloud`, S3 `ap-south-1`,
+  prefix `automatic/k3s_backups`), one automatic weekly Schedule (`0 3 * * 0`).
   Velero is kept here because it backs up *Kubernetes objects* as well as
   volume data, so a cloud restore can rebuild namespaces, Secrets and PVCs, not
   just files.
@@ -120,6 +120,25 @@ immutable, so adding one to a live StatefulSet is rejected by the API server.
 
 `on-error: Fail` on every hook: a database that cannot be dumped should fail
 the backup loudly rather than ship one whose database is unrestorable.
+
+### Retention: the last two backups, by two different mechanisms
+
+Both destinations target "keep the last two", but only one can express it
+directly. restic has `--keep-last 2`, a true count-based policy, and `forget`
+runs only after a *successful* backup — so a failed or skipped run can never
+expire what is already on the drive.
+
+Velero has no count-based primitive; `ttl` is the only lever and it is
+time-based. At a weekly cadence `336h` (two cycles) holds two backups at steady
+state and three briefly after a new one lands. The asymmetry matters: Velero's
+copies expire on a clock **whether or not new backups are still succeeding**, so
+a silently broken Schedule ends in zero cloud backups rather than two stale
+ones. With retention this tight the `backup-watchdog` is load-bearing rather
+than a nicety — it is the only thing that distinguishes "backups are current"
+from "backups stopped and then evaporated".
+
+The local restic copy is the backstop for exactly that failure, since its two
+snapshots persist regardless.
 
 ### Monitoring
 

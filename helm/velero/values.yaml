@@ -87,11 +87,17 @@ configuration:
       # REQUIRED, not cosmetic. The IAM policy on loki-homelab-backup-service
       # scopes s3:ListBucket with a condition of s3:prefix = "automatic/*", and
       # the object actions to arn:...:loki-homelab-backup/automatic/*. Velero
-      # validates a BackupStorageLocation by listing it, so without this prefix
-      # it lists at the bucket root, falls outside the condition, and the BSL
-      # stays Unavailable with AccessDenied — which is exactly how it presented
-      # before this was set.
-      prefix: automatic
+      # validates a BackupStorageLocation by listing it, so without a prefix
+      # under automatic/ it lists at the bucket root, falls outside the
+      # condition, and the BSL stays Unavailable with AccessDenied — which is
+      # exactly how it presented before this was set.
+      #
+      # The k3s_backups/ subdirectory keeps this cluster's data separable from
+      # anything else that writes under automatic/. It stays INSIDE automatic/
+      # deliberately: the IAM condition is StringLike "automatic/*", so a
+      # nested prefix still matches, but moving it out from under automatic/
+      # would break the policy.
+      prefix: automatic/k3s_backups
       config:
         region: ap-south-1
       credential:
@@ -110,7 +116,19 @@ schedules:
     schedule: "0 3 * * 0"
     template:
       storageLocation: cloud
-      ttl: "720h0m0s"
+      # Target: keep the last two backups. Velero has NO count-based retention
+      # primitive — ttl is the only lever, and it is time-based. At a weekly
+      # cadence 336h (14d = two cycles) holds two backups at steady state, and
+      # three for the short window after a new one lands before the oldest
+      # expires. Was 720h (30d), which held four to five.
+      #
+      # CAVEAT worth understanding: unlike restic's --keep-last on the local
+      # side, this expires on a clock regardless of whether new backups are
+      # still succeeding. If the weekly Schedule silently stops, the existing
+      # backups age out and you end up with none. That is precisely what the
+      # backup-watchdog in helm/backup-local exists to catch — with retention
+      # this tight, it is load-bearing, not a nicety.
+      ttl: "336h0m0s"
       includedNamespaces:
         - "*"
       excludedNamespaces:
