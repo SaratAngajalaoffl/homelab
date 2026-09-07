@@ -30,8 +30,18 @@ User: arn:aws:iam::<acct>:user/loki-homelab-backup-service is not authorized
 to perform: s3:ListBucket on resource: "arn:aws:s3:::loki-homelab-backup"
 ```
 
-Attach this policy to `loki-homelab-backup-service`. No EC2 permissions are
-needed — this cluster uses Kopia file-system backup, not volume snapshots:
+The policy in place scopes everything to an `automatic/` prefix — both the
+`s3:ListBucket` condition and the object ARNs. `values.yaml` therefore sets
+`prefix: automatic` on the BSL to match; the two must stay in sync, and
+changing one without the other puts the location back into `Unavailable`.
+
+If a large backup later fails part-way through an upload, add
+`s3:ListMultipartUploadParts` on `.../automatic/*` and
+`s3:ListBucketMultipartUploads` on the bucket — Velero's reference policy
+includes them and the 75G immich library will exercise multipart uploads.
+
+Reference policy (no EC2 permissions needed — this cluster uses Kopia
+file-system backup, not volume snapshots):
 
 ```json
 {
@@ -63,15 +73,30 @@ Then confirm it flips to `Available` (revalidation is on a 1-minute loop):
 kubectl -n velero get backupstoragelocation cloud
 ```
 
-## 2. The CRD job image — fixed, don't revert
+## 2. The CRD job is disabled — don't re-enable it
 
-The chart's CRD install/upgrade Job defaults to `docker.io/bitnami/kubectl`
-with a tag derived from the cluster version. Bitnami retired their public
-Docker Hub catalog, so `docker.io/bitnami/kubectl:1.36` is unpullable; the
-Job wedged in `Init:ImagePullBackOff` and **Velero never installed at all** —
-no CRDs, no server, no node-agent, no Schedule, and no backups had ever run.
-`values.yaml` now pins `registry.k8s.io/kubectl:v1.36.4`. If a k3s upgrade
-moves the cluster off v1.36.x, bump that tag to match.
+The chart's CRD install/upgrade Job is why **Velero never installed at all**:
+no CRDs, no server, no node-agent, no Schedule, no backups, ever. It defaults
+to `docker.io/bitnami/kubectl` with a tag derived from the cluster version,
+and Bitnami retired their public Docker Hub catalog, so the image 404s.
+
+Two replacement images were tried and both failed differently:
+`registry.k8s.io/kubectl` is distroless, and the job's init container runs
+``/bin/sh -c 'cp `which sh` /tmp && cp `which kubectl` /tmp'`` — no shell, so
+`Init:RunContainerError`. `alpine/kubectl` has a shell, but stages a
+musl-linked busybox that the velero image cannot exec (`exec /tmp/sh: no such
+file or directory`). The staged binaries have to match velero's libc.
+
+So `values.yaml` sets `upgradeCRDs: false` and the CRDs come from the chart's
+own `crds/` directory, which Helm and ArgoCD apply directly — no third-party
+image in the backup system's critical path.
+
+**Trade-off:** Helm never upgrades `crds/`. On a velero chart bump, check the
+release notes and apply CRD changes by hand:
+
+```
+kubectl apply -f https://github.com/vmware-tanzu/velero/releases/download/<ver>/velero-crds.yaml
+```
 
 Verify the install actually completed:
 

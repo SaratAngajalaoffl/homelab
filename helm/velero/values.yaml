@@ -84,6 +84,14 @@ configuration:
       provider: aws
       default: true
       bucket: loki-homelab-backup
+      # REQUIRED, not cosmetic. The IAM policy on loki-homelab-backup-service
+      # scopes s3:ListBucket with a condition of s3:prefix = "automatic/*", and
+      # the object actions to arn:...:loki-homelab-backup/automatic/*. Velero
+      # validates a BackupStorageLocation by listing it, so without this prefix
+      # it lists at the bucket root, falls outside the condition, and the BSL
+      # stays Unavailable with AccessDenied — which is exactly how it presented
+      # before this was set.
+      prefix: automatic
       config:
         region: ap-south-1
       credential:
@@ -105,3 +113,13 @@ schedules:
       ttl: "720h0m0s"
       includedNamespaces:
         - "*"
+      excludedNamespaces:
+        # 22.3G of Ollama model weights, re-pullable from the model registry on
+        # demand — 21% of every weekly upload for something that is a download,
+        # not data. Measured against 105.8G of total PVC data, of which 75.2G is
+        # the immich photo library (the reason this backup exists).
+        #
+        # Cloud only. helm/backup-local walks the whole local-path root, so the
+        # drive copy still has the models; the external drive has 1.8T free and
+        # no per-GB cost, so there is nothing to gain by excluding them there.
+        - homelab-ollama

@@ -129,7 +129,15 @@ partial failure, or a dead cluster all result in a missed check-in and an
 alert. This is a deliberate dead-man's switch rather than push-on-failure,
 because the failure this system actually had was silence.
 
-### Scope: media is excluded, by choice
+### Scope: media and Ollama models are excluded, by choice
+
+Measured PVC data is 105.8G: immich's photo library is 75.2G of it, Ollama
+model weights 22.3G, everything else under 8G. The cloud schedule therefore
+excludes `homelab-ollama` — model weights are a re-pullable download, not data,
+and they were 21% of every weekly upload. `helm/backup-local` still captures
+them, since the external drive has 1.8T free and no per-GB cost.
+
+
 
 `arr`'s torrents/media tree and `jellyfin`'s library are `hostPath` mounts, not
 PVCs, so Kopia skips them and restic's PVC-root scan does not see them either.
@@ -214,12 +222,14 @@ endpoint.
 
 ## Known gaps
 
-- **The cloud BSL needs a wider IAM policy.** The S3 key was reused from a host
-  cron job that only uploaded a tarball, so it can write but cannot
-  `s3:ListBucket` — and Velero validates a BackupStorageLocation by listing it,
-  so `cloud` sits `Unavailable` and no backup can run. The policy to attach is
-  in `helm/velero/.setup` §1. This is the last thing standing between the
-  cluster and its first successful backup.
+- **The cloud IAM policy is prefix-scoped, and the BSL must match.** The policy
+  on `loki-homelab-backup-service` grants `s3:ListBucket` only under condition
+  `s3:prefix = automatic/*`, and object actions only on `.../automatic/*`. The
+  BSL therefore sets `prefix: automatic`; without it Velero lists at the bucket
+  root, falls outside the condition, and the location stays `Unavailable`. If
+  large backups later fail mid-upload, the likely cause is that the policy omits
+  `s3:ListMultipartUploadParts` (and `s3:ListBucketMultipartUploads`), which
+  Velero's own reference policy includes and a 75G immich upload will exercise.
 - **The chart's CRD job is disabled** (`upgradeCRDs: false`) because it could
   not be made to work: it needs a kubectl image that both ships a shell and
   matches velero's libc, and bitnami's retired catalog was the only thing that
