@@ -91,7 +91,13 @@ spec:
                     exit 1
                   fi
 
-                  newest_epoch=$(date -u -d "$newest" +%s 2>/dev/null || echo 0)
+                  # BusyBox date (Alpine) needs an explicit input format for
+                  # RFC3339 and does not accept GNU's free-form -d. Try the
+                  # BusyBox form first, then fall back to GNU in case the image
+                  # base ever changes to a coreutils one.
+                  newest_epoch=$(date -u -D "%Y-%m-%dT%H:%M:%SZ" -d "$newest" +%s 2>/dev/null \
+                    || date -u -d "$newest" +%s 2>/dev/null \
+                    || echo 0)
                   if [ "$newest_epoch" = "0" ]; then
                     echo "Could not parse completionTimestamp '$newest'." >&2
                     exit 1
