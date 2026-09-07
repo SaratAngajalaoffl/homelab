@@ -55,7 +55,7 @@ watchdog:
   enabled: true
   image:
     repository: registry.k8s.io/kubectl
-    tag: v1.36.4
+    tag: v1.37.0@sha256:5ed410ebac5dc976cc717098994dcdb29bbbd38f6bd65f582311f5be4ba719cf
   # Daily 08:00: often enough to catch a missed weekly run promptly, rare
   # enough that a healthchecks.io grace period of ~36h is comfortable.
   schedule: "0 8 * * *"
