@@ -28,6 +28,9 @@ helm upgrade --install <stack> ./helm/<stack> -n homelab-<stack> --create-namesp
 ./scripts/env/copy_env.sh
 ./scripts/k8s-secrets/copy_secrets.sh
 
+# Backup status — both destinations, one read-only view (safe mid-backup)
+./scripts/backup/status.sh
+
 # Backups. Cloud is automatic (weekly Schedule); everything else is manual.
 velero backup get
 velero backup create cloud-manual-$(date +%Y%m%d) --storage-location cloud
@@ -69,6 +72,7 @@ kubectl -n homelab-backup-local create job --from=cronjob/backup-local manual-$(
 ├── .github/workflows/      # CI: renders + lints every chart (Renovate automerge gate)
 ├── docs/adr/               # Architecture decision records
 ├── scripts/
+│   ├── backup/             # status.sh — unified backup progress/stats view
 │   ├── env/                # copy_env.sh, apply_env.sh — legacy *.env secrets round-trip
 │   └── k8s-secrets/         # copy_secrets.sh, apply_secrets.sh — Sealed Secrets round-trip
 └── helm/

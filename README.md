@@ -111,6 +111,22 @@ Three secrets must be created by hand before any of this works — see each
 stack's `.setup`. **The restic password belongs in your vault:** lose it and
 every snapshot on the drive is permanently unreadable.
 
+Retention is **the last two backups** on both sides, by different mechanisms:
+restic uses `--keep-last 2` (count-based, and only prunes after a *successful*
+run), Velero uses `ttl: 336h` (time-based — it expires on a clock even if new
+backups stop, which is what makes the watchdog load-bearing).
+
+### Where to check on it
+
+```bash
+./scripts/backup/status.sh
+```
+
+One read-only view of both destinations: storage-location health, schedule and
+TTL, every backup with its expiry, live per-volume byte progress while a backup
+is running, drive space, the restic snapshot list, and the watchdog's last
+result. Safe to run mid-backup.
+
 Restores are always manual. `helm/velero/.setup` documents a scratch-namespace
 restore test; run it at least once rather than assuming.
 
@@ -118,6 +134,10 @@ restore test; run it at least once rather than assuming.
 velero backup get                                     # what exists
 velero restore create --from-backup <name>            # cloud restore
 ```
+
+The `velero` CLI gives the richest per-backup view (`velero backup describe
+<name> --details`, `velero backup logs <name>`) and is worth installing; the
+status script deliberately uses plain `kubectl` so it works without it.
 
 ## Storage layout
 
