@@ -7,7 +7,7 @@ namespace: homelab-arr
 # container in this pod, with no explicit network_mode needed.
 pod:
   gluetun:
-    image: qmcgaw/gluetun:latest@sha256:20ca3a534cd7c5733f76bee2ef118847cc9e98a8e397234644af2fcbf7be0725
+    image: qmcgaw/gluetun:latest@sha256:62810455bc9dacdcf887ddeb33b0e054d39a048ebe9264dff2f2692ce180a35c
     env:
       # Kernel wireguard needs net.ipv4.conf.all.src_valid_mark=1, which is
       # not on this cluster's allowed pod-sysctl list (SysctlForbidden) and
