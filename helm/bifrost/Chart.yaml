@@ -1,0 +1,10 @@
+apiVersion: v2
+name: bifrost
+description: Bifrost LLM gateway (OpenAI-compatible, multi-provider)
+type: application
+version: 0.1.0
+appVersion: "latest"
+dependencies:
+  - name: homelab-common
+    version: "0.1.0"
+    repository: "file://../homelab-common"

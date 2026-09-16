@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bifrost
+  namespace: argocd
+spec:
+  project: homelab
+  source:
+    repoURL: git@github.com:SaratAngajalaoffl/homelab.git
+    targetRevision: main
+    path: helm/bifrost
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: homelab-bifrost
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
