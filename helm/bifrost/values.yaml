@@ -8,6 +8,12 @@ server:
   env:
     APP_PORT: "8080"
     APP_HOST: "0.0.0.0"
+  # BIFROST_SETUP_TOKEN, used once from the dashboard (Workspace > Config >
+  # Security) to create the first admin account and turn on password
+  # protection. Provisioned directly in-cluster as `bifrost-secrets`
+  # (kubectl, not committed) rather than a SealedSecret, same as
+  # token-auth's envSecretName pattern — see helm/token-auth/values.yaml.
+  envSecretName: bifrost-secrets
   persistence:
     # Provider configs, virtual keys, and logs are managed through Bifrost's
     # own web UI and written here — there is no per-provider env var/secret
@@ -17,10 +23,11 @@ server:
       size: 5Gi
       storageClassName: local-path
 
-# Bifrost has no auth of its own in front of its config UI/API, and that UI
-# can mint/hold every configured provider's API key — same public-exposure
-# risk class as portainer/openclaw. Rate limiting is the interim mitigation;
-# target state is netbird-only. See docs/adr/0005-backup-restore.md.
+# Bifrost has no auth of its own in front of its config UI/API until the
+# BIFROST_SETUP_TOKEN flow above is completed, and that UI can mint/hold
+# every configured provider's API key — same public-exposure risk class as
+# portainer/openclaw. Rate limiting is the interim mitigation; target state
+# is netbird-only. See docs/adr/0005-backup-restore.md.
 rateLimit:
   average: 200
   burst: 400
