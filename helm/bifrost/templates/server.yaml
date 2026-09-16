@@ -1,6 +1,8 @@
 {{ include "homelab-common.ingress" (dict "root" $ "name" "bifrost-server" "ingress" .Values.ingress "port" .Values.server.port) }}
+---
 {{/* Public-exposure mitigation — see homelab-common/templates/_middleware.tpl. */}}
 {{ include "homelab-common.rateLimit" (dict "root" $ "rateLimit" .Values.rateLimit) }}
+---
 {{ include "homelab-common.deployment" (dict "root" $ "name" "bifrost-server" "values" .Values.server) }}
 ---
 {{ include "homelab-common.service" (dict "root" $ "name" "bifrost-server" "port" .Values.server.port) }}
