@@ -23,12 +23,18 @@ jellyfin:
   #
   # NOT BACKED UP, deliberately: hostPath volumes are invisible to both Velero's
   # fs-backup and helm/backup-local's PVC-root scan. See docs/adr/0005.
-  # The tree is currently empty — the operator deleted the library as no longer
-  # needed. It may be repopulated later; the wiring is left in place for that.
+  #
+  # arr's data tree moved from a hostPath (~/storage/homelab/homelab-data/arr,
+  # deleted) to the `arr-arr-data` PVC (see helm/arr/values.yaml). PVCs are
+  # namespace-scoped and RWO, so jellyfin can't mount that PVC directly from
+  # this namespace — instead this hostPath points straight at the PVC's
+  # local-path backing directory on the node (single-node cluster, so this is
+  # safe today; revisit if a second node is added). The media subdir is
+  # currently empty since the operator cleared the old library.
   extraVolumes:
     - name: media
       hostPath:
-        path: /home/mugiwara/storage/homelab/homelab-data/arr/media
+        path: /var/lib/rancher/k3s/storage/pvc-2cc4e463-12d7-4c83-ab8f-326871efd3d3_homelab-arr_arr-arr-data/media
         type: Directory
   extraVolumeMounts:
     - name: media
