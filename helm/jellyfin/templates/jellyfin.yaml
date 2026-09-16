@@ -1,0 +1,6 @@
+{{ include "homelab-common.deployment" (dict "root" $ "name" "jellyfin-server" "values" .Values.jellyfin) }}
+---
+{{ include "homelab-common.service" (dict "root" $ "name" "jellyfin-server" "port" .Values.jellyfin.port) }}
+{{ include "homelab-common.pvcs" (dict "root" $ "name" "jellyfin-server" "persistence" .Values.jellyfin.persistence) }}
+---
+{{ include "homelab-common.ingress" (dict "root" $ "name" "jellyfin-server" "ingress" .Values.jellyfinIngress "port" .Values.jellyfin.port) }}

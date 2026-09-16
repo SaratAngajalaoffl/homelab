@@ -1,0 +1,68 @@
+namespace: homelab-jellyfin
+
+jellyfin:
+  image:
+    repository: jellyfin/jellyfin
+    tag: "latest@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db"
+  port: 8096
+  env:
+    JELLYFIN_PublishedServerUrl: https://jellyfin.smugiwara.com
+  persistence:
+    - name: config
+      mountPath: /config
+      size: 5Gi
+      storageClassName: local-path
+    - name: cache
+      mountPath: /cache
+      size: 2Gi
+      storageClassName: local-path
+  # Live-shared with the `arr` stack, which writes new downloads here — so
+  # this is a hostPath, not a PVC: a PVC copy would go stale immediately.
+  # Only valid on a single-node cluster (true today) — revisit if a second
+  # node is ever added.
+  #
+  # NOT BACKED UP, deliberately: hostPath volumes are invisible to both Velero's
+  # fs-backup and helm/backup-local's PVC-root scan. See docs/adr/0005.
+  #
+  # arr's data tree moved from a hostPath (~/storage/homelab/homelab-data/arr,
+  # deleted) to the `arr-arr-data` PVC (see helm/arr/values.yaml). PVCs are
+  # namespace-scoped and RWO, so jellyfin can't mount that PVC directly from
+  # this namespace — instead this hostPath points straight at the PVC's
+  # local-path backing directory on the node (single-node cluster, so this is
+  # safe today; revisit if a second node is added). The media subdir is
+  # currently empty since the operator cleared the old library.
+  extraVolumes:
+    - name: media
+      hostPath:
+        path: /var/lib/rancher/k3s/storage/pvc-2cc4e463-12d7-4c83-ab8f-326871efd3d3_homelab-arr_arr-arr-data/media
+        type: Directory
+  extraVolumeMounts:
+    - name: media
+      mountPath: /data/media
+
+seerr:
+  image:
+    repository: ghcr.io/seerr-team/seerr
+    tag: "latest@sha256:f4768de5f616248d723e05891f3345a1402123775d03bf0890dbfedc0831bda1"
+  port: 5055
+  env:
+    LOG_LEVEL: debug
+    TZ: Asia/Kolkata
+    PORT: "5055"
+  persistence:
+    - name: config
+      mountPath: /app/config
+      size: 1Gi
+      storageClassName: local-path
+
+jellyfinIngress:
+  enabled: true
+  host: jellyfin.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod
+
+seerrIngress:
+  enabled: true
+  host: seerr.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod
