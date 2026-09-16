@@ -112,18 +112,81 @@ pod:
       storageClassName: local-path
 
 # Live-shared arr data tree (torrents + media + usenet), shared read/write
-# across qbittorrent/sonarr/radarr/prowlarr via the `data` volume below.
+# across qbittorrent/sonarr/radarr/prowlarr via the `data` volume below, and
+# read-only by jellyfin below via its `media` subPath mount of this same PVC.
 # Previously a hostPath mount at ~/storage/homelab/homelab-data/arr; that tree
 # was deleted (operator no longer needs the library) so this is now a regular
 # PVC on local-path, per ADR 0005's storage-reality note that PVCs land under
-# /var/lib/rancher/k3s/storage, not the data disk. Unlike jellyfin's `media`
-# hostPath (which stays hostPath since it points at real external media), this
-# one no longer needs single-node-only hostPath semantics.
+# /var/lib/rancher/k3s/storage, not the data disk.
 data:
   persistence:
     name: arr-data
     size: 50Gi
     storageClassName: local-path
+
+# jellyfin and seerr were previously their own helm/jellyfin chart in a
+# separate homelab-jellyfin namespace. Folded in here because they're part of
+# the same media pipeline as the rest of this stack (jellyfin serves what arr
+# downloads, seerr files requests against it) — and being in the same
+# namespace lets jellyfin mount the `data` PVC above directly by name/subPath
+# instead of reaching across namespaces via a raw hostPath to its local-path
+# backing directory.
+jellyfin:
+  image:
+    repository: jellyfin/jellyfin
+    tag: "latest@sha256:78d3ea1207d1322471fcac39a614f004f2ccf7e878f95ab2977d752f07e4dd7e"
+  port: 8096
+  env:
+    JELLYFIN_PublishedServerUrl: https://jellyfin.smugiwara.com
+  persistence:
+    - name: config
+      mountPath: /config
+      size: 5Gi
+      storageClassName: local-path
+    - name: cache
+      mountPath: /cache
+      size: 2Gi
+      storageClassName: local-path
+  # Read-only mount of the `data` PVC's media subdir — same PVC arr's
+  # containers write new downloads into, via a real PVC reference now that
+  # jellyfin lives in this namespace/chart (no more hostPath workaround).
+  extraVolumes:
+    - name: media
+      persistentVolumeClaim:
+        claimName: arr-arr-data
+        readOnly: true
+  extraVolumeMounts:
+    - name: media
+      mountPath: /data/media
+      subPath: media
+      readOnly: true
+
+seerr:
+  image:
+    repository: ghcr.io/seerr-team/seerr
+    tag: "latest@sha256:f4768de5f616248d723e05891f3345a1402123775d03bf0890dbfedc0831bda1"
+  port: 5055
+  env:
+    LOG_LEVEL: debug
+    TZ: Asia/Kolkata
+    PORT: "5055"
+  persistence:
+    - name: config
+      mountPath: /app/config
+      size: 1Gi
+      storageClassName: local-path
+
+jellyfinIngress:
+  enabled: true
+  host: jellyfin.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod
+
+seerrIngress:
+  enabled: true
+  host: seerr.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod
 
 # Applied to all five ingresses below by templates/ingress.yaml.
 rateLimit:
