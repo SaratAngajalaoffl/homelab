@@ -39,8 +39,8 @@ server:
 # hermes both have one). Rate limiting is the interim mitigation; target state
 # is netbird-only. See docs/adr/0005-backup-restore.md.
 rateLimit:
-  average: 20
-  burst: 40
+  average: 200
+  burst: 400
 
 ingress:
   enabled: true

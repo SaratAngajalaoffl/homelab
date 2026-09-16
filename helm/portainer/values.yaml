@@ -28,8 +28,8 @@ server:
 # runtime socket — a credential-stuffing mitigation, not a fix. Target state is
 # netbird-only; see docs/adr/0005-backup-restore.md.
 rateLimit:
-  average: 20
-  burst: 40
+  average: 200
+  burst: 400
 
 ingress:
   enabled: true

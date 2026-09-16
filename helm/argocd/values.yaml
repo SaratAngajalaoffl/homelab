@@ -40,9 +40,9 @@ extraObjects:
       namespace: argocd
     spec:
       rateLimit:
-        average: 20
-        burst: 40
-        period: 1m
+        average: 200
+        burst: 400
+        period: 1s
 
 server:
   ingress:

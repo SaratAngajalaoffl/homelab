@@ -190,8 +190,8 @@ seerrIngress:
 
 # Applied to all five ingresses below by templates/ingress.yaml.
 rateLimit:
-  average: 20
-  burst: 40
+  average: 200
+  burst: 400
 
 ingress:
   sonarr:
