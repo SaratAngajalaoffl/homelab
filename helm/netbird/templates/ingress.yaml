@@ -4,7 +4,12 @@ paths, netbird-dashboard is the catch-all — replicates the NPM Advanced-tab
 location blocks the retired nginx-proxy-manager used for this host.
 NOTE: that NPM advanced-config file was deleted with the containers/ tree and
 is not recoverable from this repo — treat the rules below as the source of truth.
-Traefik proxies gRPC/websocket/HTTP2 natively, no special annotations needed.
+Traefik proxies gRPC/websocket natively at the edge, but it still needs to
+know to speak h2c (cleartext HTTP/2) to the netbird-server backend for the
+gRPC paths below — otherwise it falls back to HTTP/1.1 upstream and gRPC
+calls 404. That's set via the
+traefik.ingress.kubernetes.io/service.serversscheme: h2c annotation on the
+netbird-server Service (see server.yaml), not on this Ingress.
 */}}
 {{- $ing := .Values.ingress -}}
 {{- $serverName := include "homelab-common.fullname" (dict "root" $ "name" "netbird-server") -}}
