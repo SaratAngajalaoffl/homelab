@@ -33,9 +33,15 @@ actually blocker "0" below, not this one.
 
 ## Blocker 0 — images aren't digest-pinned yet (tag is "main", mutable)
 
-`api`/`engine`/`frontend` are currently pinned to the tag `main`, not a digest, because resolving
-the digest needs the same `ghcr-jeeva` PAT and I (the agent) never hold that token — only you do.
-To pin it properly (recommended, matches every other stack in this repo):
+**Done as of 2026-09-20** — `api`/`engine`/`frontend` are now pinned to `main@sha256:<digest>` in
+`values.yaml`, resolved via `docker pull`/`docker inspect` against ghcr.io with the `ghcr-jeeva`
+PAT. This also fixed a real symptom: because `imagePullPolicy` defaults to `IfNotPresent` for any
+non-`latest` tag, pods stuck on an old `main` pull never re-pulled after a new push — `git push`
+alone didn't move them since the tag string in git never changed. Digest-pinning makes each new
+push to `main` produce an actual values.yaml diff, which is what makes ArgoCD's sync (and
+eventually Renovate's digest-bump PRs) do anything.
+
+To re-pin after a future push to `main`:
 
 ```bash
 echo <PAT> | docker login ghcr.io -u <gh-username> --password-stdin
@@ -44,9 +50,7 @@ docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/saratangajalaoffl/jee
 # repeat for engine and frontend
 ```
 
-Then update each `tag:` in `values.yaml` to `"main@sha256:<digest>"`. Until then, `imagePullPolicy`
-defaults to `IfNotPresent`, so a running pod won't silently drift — but a fresh pod scheduled after
-a new push could pull a different `main` than what's been tested.
+Then update each `tag:` in `values.yaml` to `"main@sha256:<digest>"` and `git push`.
 
 ## Blocker 2 — no production migration path in the published image
 

@@ -79,11 +79,11 @@ api:
     # publish.yml (in the jeeva repo) only tags "main" on a push to main —
     # docker/metadata-action's default "latest=auto" flavor only fires for
     # semver-tag pushes, not branch pushes, so there is no ":latest" tag to
-    # pull. Not yet digest-pinned either: I don't hold the ghcr-jeeva PAT
-    # (you do), so I can't resolve "main"'s digest myself — pin to
-    # "main@sha256:..." once you can (docker pull/inspect against ghcr.io
-    # with that PAT), same pattern as helm/yggdrasil/values.yaml.
-    tag: "main"
+    # pull. Digest-pinned (docker pull/inspect against ghcr.io with the
+    # ghcr-jeeva PAT) so ArgoCD/Renovate can detect new pushes to "main" via
+    # digest bumps, same pattern as helm/yggdrasil/values.yaml. Re-pin
+    # manually until Renovate's digest-tracking picks this stack up.
+    tag: "main@sha256:414c546d13b5f4eed22c7560502f4a85335621680d2364ec35e4384fde71700f"
   imagePullSecrets: ["ghcr-jeeva"]
   port: 4000
   env:
@@ -100,7 +100,7 @@ api:
 engine:
   image:
     repository: ghcr.io/saratangajalaoffl/jeeva/engine
-    tag: "main"
+    tag: "main@sha256:e4d1bd338c0b104b74040effbbb8255aec0e5cc7cbd89b0730741fb95689d8fa"
   imagePullSecrets: ["ghcr-jeeva"]
   # No port — background worker only (decision/scheduler loop), same as
   # docker-compose.yml's engine service.
@@ -116,7 +116,7 @@ engine:
 frontend:
   image:
     repository: ghcr.io/saratangajalaoffl/jeeva/frontend
-    tag: "main"
+    tag: "main@sha256:8e35f8eacd9853e99bfb56f58c8be1d2ed05e44cd932b3767dca595cdfaed642"
   imagePullSecrets: ["ghcr-jeeva"]
   port: 3000
   # NOT effective at runtime — see CONTEXT.md "Frontend API URL is baked at
