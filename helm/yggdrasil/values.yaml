@@ -107,7 +107,7 @@ api:
 orchestrator:
   image:
     repository: ghcr.io/yggdrasil-hq/yggdrasil-orchestrator
-    tag: "latest@sha256:a9de3a132028dcdae81cb7e71c7cfdfea290dd0da2be3435bca6456670a2b5ca"
+    tag: "latest@sha256:a1aa59261923690beaa4c1e03d91ed90d4836bb778d8da8bf961b1bc728734fc"
   port: 8080
   env:
     PORT: "8080"
