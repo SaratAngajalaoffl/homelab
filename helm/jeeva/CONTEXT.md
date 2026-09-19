@@ -52,23 +52,23 @@ docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/saratangajalaoffl/jee
 
 Then update each `tag:` in `values.yaml` to `"main@sha256:<digest>"` and `git push`.
 
-## Blocker 2 — no production migration path in the published image
+## Blocker 2 — no production migration path in the published image (resolved)
 
-`api/deploy/Dockerfile` (in the jeeva repo) only copies `dist/`, `node_modules/`, and
-`package.json` into the runtime image — it never copies `api/migrations/` or the `tsx`/
-`node-pg-migrate` devDependencies the `migrate` script needs. So there's no way to run
-`npm run migrate up` from the published `api` image. Until that's fixed upstream (adding the
-migrations dir + `node-pg-migrate` to the deploy image, or a dedicated migrate stage), run
-migrations manually from a local checkout after port-forwarding to the cluster:
+**Done as of 2026-09-20.** `api/deploy/Dockerfile` now copies `api/migrations/` into the runtime
+image alongside `dist/`/`node_modules/`/`package.json` (the `tsx`/`node-pg-migrate`
+devDependencies were already present — deps are installed without `NODE_ENV=production`, so
+devDeps land in the image). `templates/db-migrate-job.yaml` is a `pre-install,pre-upgrade` Helm
+hook Job that reuses the `api` image, overrides its entrypoint to run
+`node-pg-migrate --migration-file-language ts up` from `/repo/api` (migrations resolve relative to
+that `WORKDIR`, matching the Dockerfile's `COPY --from=builder /repo/api/migrations ./api/migrations`
+before the final `WORKDIR /repo/api`), and reads `DATABASE_URL` from the same `jeeva-api-secrets`
+Secret the `api`/`engine` Deployments use. It runs automatically on every `helm upgrade`/ArgoCD
+sync — no manual step needed for future schema changes, as long as the migration file ships in the
+same image build.
 
-```bash
-KUBECONFIG=~/.kube/k3s-homelab.yaml kubectl -n homelab-jeeva port-forward svc/jeeva-timescaledb 5432:5432 &
-DATABASE_URL=postgres://<user>:<password>@localhost:5432/<db> npm run migrate --workspace=api up
-```
-
-(Credentials are whatever's sealed into `jeeva-db-secrets`; you have them from when you sealed
-that secret.) Needed once now, and again after any PR in the jeeva repo that adds a migration
-file.
+Note: `node-pg-migrate`'s CLI binary is hoisted to `/repo/node_modules/.bin/` by npm workspaces,
+not `/repo/api/node_modules/.bin/` — the Job's `command:` uses the absolute root path for that
+reason.
 
 ## Frontend API URL is baked at build time
 

@@ -1,0 +1,32 @@
+{{/*
+Applies api/migrations/*.ts against TimescaleDB. Reuses the api image, which
+now bundles api/migrations/ (fixed in the jeeva repo — see CONTEXT.md
+"Blocker 2"). node-pg-migrate + tsx are already in the image's node_modules,
+so this just overrides the entrypoint to run the migrate script instead of
+serving HTTP. Runs before api/engine start (pre-install/pre-upgrade), so a
+fresh schema is in place before either container makes its first query.
+*/}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: jeeva-db-migrate
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: ghcr-jeeva
+      containers:
+        - name: db-migrate
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          workingDir: /repo/api
+          command: ["/repo/node_modules/.bin/node-pg-migrate", "--migration-file-language", "ts", "up"]
+          envFrom:
+            - secretRef:
+                name: {{ .Values.api.envSecretName }}

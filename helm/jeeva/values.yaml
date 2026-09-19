@@ -1,12 +1,11 @@
 # jeeva — AI-assisted Hyperliquid trading app. Source: github.com/SaratAngajalaoffl/jeeva
 # (private repo, images published to GHCR on push to main).
 #
-# BLOCKED until two things happen — see CONTEXT.md:
-#  1. A GHCR imagePullSecret (ghcr-jeeva) must exist in homelab-jeeva before
-#     any pod here can pull its image — the upstream repo/images are private.
-#  2. api.env.DATABASE_URL migrations have no production path in the published
-#     image (node-pg-migrate + the migrations/ dir aren't shipped in
-#     api/deploy/Dockerfile) — must be run manually once per schema change.
+# Both prior blockers are resolved — see CONTEXT.md:
+#  1. GHCR imagePullSecret (ghcr-jeeva) exists in homelab-jeeva.
+#  2. api/deploy/Dockerfile now ships api/migrations/, and
+#     templates/db-migrate-job.yaml runs node-pg-migrate against
+#     jeeva-api-secrets' DATABASE_URL as a pre-install/pre-upgrade hook.
 namespace: homelab-jeeva
 
 mongo:
