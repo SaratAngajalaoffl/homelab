@@ -105,11 +105,17 @@ engine:
   # docker-compose.yml's engine service.
   env:
     MONGO_URL: "mongodb://jeeva-mongo:27017/jeeva"
+    # Not secret — the engine's built-in default (OPENROUTER_BASE_URL in
+    # src/decision/openrouter_jev_decision_maker.rs) is the same value, set
+    # explicitly so a per-PERP "openrouter" decision maker resolves here.
+    OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1"
   # Secret must provide DATABASE_URL (same value as jeeva-api-secrets'), and
-  # MAY provide TYPESAFE_API_KEY / TYPESAFE_BASE_URL / HYPERLIQUID_PRIVATE_KEY
-  # / HYPERLIQUID_TESTNET once you want the typesafe DecisionMaker or live
-  # execution — omit them and the engine stays in Fake/mock mode, its
-  # default. See templates/sealed-engine-secrets.yaml.
+  # MAY provide OPENROUTER_API_KEY (required for the "openrouter"
+  # DecisionMaker — see templates/sealed-engine-secrets.yaml; engine/src/
+  # main.rs registers it only if that var is present, otherwise it's an
+  # UnconfiguredDecisionMaker) / TYPESAFE_API_KEY / TYPESAFE_BASE_URL /
+  # HYPERLIQUID_PRIVATE_KEY / HYPERLIQUID_TESTNET. Omit them and the engine
+  # stays in Fake/mock mode, its default.
   envSecretName: jeeva-engine-secrets
 
 frontend:
