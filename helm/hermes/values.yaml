@@ -3,7 +3,7 @@ namespace: homelab-hermes
 server:
   image:
     repository: nousresearch/hermes-agent
-    tag: "latest@sha256:c05fdfe8d51e2b53bc39dceb176cdedfc5eb03ed40a3f2272d94405d3618d9e4"
+    tag: "latest@sha256:efae0f12b31097d00d47bdd6b9ffecadcbb82139a43417d2db19b985ce413fb8"
   args: ["gateway", "run"]
   env:
     HERMES_DASHBOARD: "1"
