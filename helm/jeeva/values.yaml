@@ -100,7 +100,7 @@ api:
 engine:
   image:
     repository: ghcr.io/saratangajalaoffl/jeeva/engine
-    tag: "main@sha256:e4d1bd338c0b104b74040effbbb8255aec0e5cc7cbd89b0730741fb95689d8fa"
+    tag: "main@sha256:3aca5add336a55102950d15428a5999c10aae3dd382aa52a6949bd5459cfb51e"
   imagePullSecrets: ["ghcr-jeeva"]
   # No port — background worker only (decision/scheduler loop), same as
   # docker-compose.yml's engine service.
