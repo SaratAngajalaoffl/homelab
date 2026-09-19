@@ -3,7 +3,7 @@ namespace: homelab-openclaw
 server:
   image:
     repository: ghcr.io/openclaw/openclaw
-    tag: "latest@sha256:cc596b846506a5f4cfcee111394a2725f375f01cca2ebb492a161fd1b747f101"
+    tag: "latest@sha256:ea298b62be8955d3ef750e2004a610dd90c3a30e5f9886e5d654d78a0c573218"
   port: 18789
   args: ["dist/index.js", "gateway", "--bind", "lan", "--port", "18789"]
   securityContext:
