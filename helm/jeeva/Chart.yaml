@@ -1,0 +1,10 @@
+apiVersion: v2
+name: jeeva
+description: Self-hosted Jeeva AI-assisted Hyperliquid trading app (frontend + API + Rust engine + Mongo + TimescaleDB)
+type: application
+version: 0.1.0
+appVersion: "latest"
+dependencies:
+  - name: homelab-common
+    version: "0.1.0"
+    repository: "file://../homelab-common"

@@ -16,6 +16,7 @@ Expected shape of "values":
   extraVolumeMounts: [] (optional, raw k8s volumeMount entries, paired with extraVolumes by name)
   extraPorts: [] (optional, raw k8s containerPort entries, e.g. { containerPort: 3478, protocol: UDP, hostPort: 3478 } for a Compose-style host port publish — single-node only, same caveat as hostPath)
   runtimeClassName: "" (optional, pod-level, e.g. "nvidia" for GPU workloads)
+  imagePullSecrets: [] (optional, list of Secret names, e.g. ["ghcr-jeeva"] for a private registry)
   strategy: {} (optional, raw k8s Deployment strategy, e.g. { type: Recreate } — required for any hostPort-binding container on a single-node cluster, since RollingUpdate's surge pod can never schedule while the old pod still holds the port)
   podAnnotations: {} (optional, annotations on the POD template — not the Deployment. Velero's backup hooks are pod annotations, so this is what lets a stack declare a pre-backup database dump; see helm/velero/CONTEXT.md)
 */}}
@@ -49,6 +50,12 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
+      {{- with $v.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
       {{- with $v.runtimeClassName }}
       runtimeClassName: {{ . }}
       {{- end }}

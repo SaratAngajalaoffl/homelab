@@ -1,0 +1,146 @@
+# jeeva — AI-assisted Hyperliquid trading app. Source: github.com/SaratAngajalaoffl/jeeva
+# (private repo, images published to GHCR on push to main).
+#
+# BLOCKED until two things happen — see CONTEXT.md:
+#  1. A GHCR imagePullSecret (ghcr-jeeva) must exist in homelab-jeeva before
+#     any pod here can pull its image — the upstream repo/images are private.
+#  2. api.env.DATABASE_URL migrations have no production path in the published
+#     image (node-pg-migrate + the migrations/ dir aren't shipped in
+#     api/deploy/Dockerfile) — must be run manually once per schema change.
+namespace: homelab-jeeva
+
+mongo:
+  image:
+    repository: mongo
+    tag: "7@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca"
+  port: 27017
+  # Single-node replica set — required for the change streams the engine
+  # uses to react to config updates (same as docker-compose.yml's mongo
+  # service). Initiated idempotently by the post-install/post-upgrade hook
+  # Job in templates/mongo-rs-init-job.yaml.
+  args: ["--replSet", "rs0", "--bind_ip_all"]
+  persistence:
+    - name: data
+      mountPath: /data/db
+      size: 5Gi
+      storageClassName: local-path
+  podAnnotations:
+    pre.hook.backup.velero.io/container: mongo
+    pre.hook.backup.velero.io/command: '["/bin/sh","-c","set -e; mongodump --host 127.0.0.1 --db jeeva --archive=/dumps/mongo.dump.tmp && mv /dumps/mongo.dump.tmp /dumps/mongo.dump"]'
+    pre.hook.backup.velero.io/timeout: 15m
+    pre.hook.backup.velero.io/on-error: Fail
+  dumpsPersistence:
+    name: dumps
+    size: 2Gi
+    storageClassName: local-path
+  extraVolumes:
+    - name: dumps
+      persistentVolumeClaim:
+        claimName: jeeva-mongo-dumps
+  extraVolumeMounts:
+    - name: dumps
+      mountPath: /dumps
+
+timescaledb:
+  image:
+    repository: timescale/timescaledb
+    tag: "latest-pg16@sha256:f495f2bc25ca7596ca8e1606c6241ca250ccc56a0c082b9f2ec0d290e0126cd9"
+  port: 5432
+  # Secret must provide POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB.
+  envSecretName: jeeva-db-secrets
+  persistence:
+    - name: data
+      # pg16-based image; PGDATA defaults to this path directly (unlike
+      # postgres 18+, which needs the parent-dir mount trick — see
+      # helm/yggdrasil/values.yaml's db.persistence comment).
+      mountPath: /var/lib/postgresql/data
+      size: 5Gi
+      storageClassName: local-path
+  podAnnotations:
+    pre.hook.backup.velero.io/container: timescaledb
+    pre.hook.backup.velero.io/command: '["/bin/sh","-c","set -e; export PGPASSWORD=$POSTGRES_PASSWORD; pg_dump -h 127.0.0.1 -U $POSTGRES_USER -d $POSTGRES_DB -Fc -f /dumps/db.dump.tmp && mv /dumps/db.dump.tmp /dumps/db.dump"]'
+    pre.hook.backup.velero.io/timeout: 15m
+    pre.hook.backup.velero.io/on-error: Fail
+  dumpsPersistence:
+    name: dumps
+    size: 2Gi
+    storageClassName: local-path
+  extraVolumes:
+    - name: dumps
+      persistentVolumeClaim:
+        claimName: jeeva-timescaledb-dumps
+  extraVolumeMounts:
+    - name: dumps
+      mountPath: /dumps
+
+api:
+  image:
+    repository: ghcr.io/saratangajalaoffl/jeeva/api
+    # Not digest-pinned yet — private image, can't be resolved without the
+    # GHCR pull secret. Pin to "latest@sha256:..." once that's set up, same
+    # as engine/frontend below and as helm/yggdrasil/values.yaml.
+    tag: "latest"
+  imagePullSecrets: ["ghcr-jeeva"]
+  port: 4000
+  env:
+    PORT: "4000"
+    MONGO_URL: "mongodb://jeeva-mongo:27017/jeeva"
+    CORS_ORIGIN: "https://jeeva.smugiwara.com"
+  # Secret must provide AUTH_USERNAME / AUTH_PASSWORD / JWT_SECRET /
+  # DATABASE_URL (a full postgres:// URI pointed at jeeva-timescaledb, using
+  # the same credentials as jeeva-db-secrets — k8s env var expansion can't
+  # reach across envFrom sources, so it's a full URI here rather than
+  # composed from POSTGRES_* pieces) — see templates/sealed-*.yaml.
+  envSecretName: jeeva-api-secrets
+
+engine:
+  image:
+    repository: ghcr.io/saratangajalaoffl/jeeva/engine
+    tag: "latest"
+  imagePullSecrets: ["ghcr-jeeva"]
+  # No port — background worker only (decision/scheduler loop), same as
+  # docker-compose.yml's engine service.
+  env:
+    MONGO_URL: "mongodb://jeeva-mongo:27017/jeeva"
+  # Secret must provide DATABASE_URL (same value as jeeva-api-secrets'), and
+  # MAY provide TYPESAFE_API_KEY / TYPESAFE_BASE_URL / HYPERLIQUID_PRIVATE_KEY
+  # / HYPERLIQUID_TESTNET once you want the typesafe DecisionMaker or live
+  # execution — omit them and the engine stays in Fake/mock mode, its
+  # default. See templates/sealed-engine-secrets.yaml.
+  envSecretName: jeeva-engine-secrets
+
+frontend:
+  image:
+    repository: ghcr.io/saratangajalaoffl/jeeva/frontend
+    tag: "latest"
+  imagePullSecrets: ["ghcr-jeeva"]
+  port: 3000
+  # NOT effective at runtime — see CONTEXT.md "Frontend API URL is baked at
+  # build time". Left here so the intent is documented even though the
+  # published image ignores it.
+  env:
+    NEXT_PUBLIC_API_URL: "https://jeeva-api.smugiwara.com"
+
+# Publicly reachable with only jeeva's own login (AUTH_USERNAME/PASSWORD) in
+# front of it, same posture as atuin/webui/portainer — see
+# docs/adr/0005-backup-restore.md "Public exposure and the netbird migration
+# plan".
+rateLimit:
+  average: 20
+  burst: 40
+
+frontendIngress:
+  enabled: true
+  host: jeeva.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: homelab-jeeva-ratelimit@kubernetescrd
+
+apiIngress:
+  enabled: true
+  host: jeeva-api.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: homelab-jeeva-ratelimit@kubernetescrd

@@ -1,0 +1,6 @@
+{{ include "homelab-common.statefulset" (dict "root" $ "name" "mongo" "values" .Values.mongo) }}
+---
+{{ include "homelab-common.service" (dict "root" $ "name" "mongo" "port" .Values.mongo.port) }}
+---
+{{/* Holds the pre-backup mongodump — see values.yaml mongo.podAnnotations. */}}
+{{ include "homelab-common.pvcs" (dict "root" $ "name" "mongo" "persistence" (list .Values.mongo.dumpsPersistence)) }}

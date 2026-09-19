@@ -1,0 +1,2 @@
+{{/* No Service — background worker only, nothing else in-cluster talks to it. */}}
+{{ include "homelab-common.deployment" (dict "root" $ "name" "engine" "values" .Values.engine) }}

@@ -87,6 +87,7 @@ kubectl -n homelab-backup-local create job --from=cronjob/backup-local manual-$(
     ├── atuin/
     ├── hermes/
     ├── immich/
+    ├── jeeva/              # CONTEXT.md has GHCR pull secret + migration bootstrap steps
     ├── jellyfin/
     ├── netbird/
     ├── nextcloud/
@@ -124,6 +125,7 @@ Store exported JSON in a vault (e.g. Bitwarden), not in git.
 | `hermes` | Self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent) personal AI assistant; one container multiplexes an OpenAI-compatible API server and a web dashboard. |
 | `jellyfin` | Reads media from `homelab-data/arr/media`; Seerr for requests. |
 | `immich` | Pinned image versions; postgres + redis + ML container. |
+| `jeeva` | Self-hosted [Jeeva](https://github.com/SaratAngajalaoffl/jeeva) AI-assisted Hyperliquid trading app; private repo, GHCR images. Frontend + API + Rust engine, backed by Mongo + TimescaleDB. **Not yet live** — see `helm/jeeva/CONTEXT.md` for the GHCR pull secret, migration, and frontend-build-arg blockers that still need manual follow-up. |
 | `netbird` | Trimmed self-hosted VPN control plane (`netbird-server` + `dashboard` only) so a laptop can reach this host's SSH port without exposing it to the internet. |
 | `nextcloud` | Bind mounts (now PVCs) need `www-data` ownership — see chart values comments. |
 | `ollama` | GPU passthrough via CDI. No auth of its own; public Ingress enforces an API key via a Traefik middleware. |

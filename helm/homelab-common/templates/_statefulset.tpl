@@ -3,8 +3,9 @@ Generic single-container StatefulSet for stateful backends (databases, etc.), us
 volumeClaimTemplates rather than pre-created PVCs so storage is created per-replica.
 Usage: {{ include "homelab-common.statefulset" (dict "root" $ "name" "atuin-db" "values" .Values.db) }}
 
-Expected shape of "values": same as homelab-common.deployment, except each
-persistence entry becomes a volumeClaimTemplate (no accessMode default change).
+Expected shape of "values": same as homelab-common.deployment (including
+optional command/args/imagePullSecrets), except each persistence entry
+becomes a volumeClaimTemplate (no accessMode default change).
 
   podAnnotations: {} (optional, annotations on the POD template — not the
     StatefulSet. Velero's backup hooks are pod annotations, so this is what
@@ -37,6 +38,12 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
+      {{- with $v.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
       {{- with $v.securityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -45,6 +52,14 @@ spec:
         - name: {{ $name }}
           image: "{{ $v.image.repository }}:{{ $v.image.tag }}"
           imagePullPolicy: {{ $v.image.pullPolicy | default "IfNotPresent" }}
+          {{- with $v.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $v.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- if $v.port }}
           ports:
             - containerPort: {{ $v.port }}

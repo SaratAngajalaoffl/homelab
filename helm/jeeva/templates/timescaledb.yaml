@@ -1,0 +1,6 @@
+{{ include "homelab-common.statefulset" (dict "root" $ "name" "timescaledb" "values" .Values.timescaledb) }}
+---
+{{ include "homelab-common.service" (dict "root" $ "name" "timescaledb" "port" .Values.timescaledb.port) }}
+---
+{{/* Holds the pre-backup pg_dump — see values.yaml timescaledb.podAnnotations. */}}
+{{ include "homelab-common.pvcs" (dict "root" $ "name" "timescaledb" "persistence" (list .Values.timescaledb.dumpsPersistence)) }}

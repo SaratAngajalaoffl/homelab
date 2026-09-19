@@ -1,0 +1,29 @@
+{{/*
+Initiates the single-node replica set mongo needs for change streams — the
+k8s equivalent of docker-compose.yml's mongo-init service. Idempotent
+(rs.status() short-circuits once already initiated), so it's safe to rerun
+on every install/upgrade rather than only once.
+*/}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: jeeva-mongo-rs-init
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 6
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: mongo-rs-init
+          image: "{{ .Values.mongo.image.repository }}:{{ .Values.mongo.image.tag }}"
+          command: ["bash", "-c"]
+          args:
+            - >
+              mongosh --host jeeva-mongo:27017 --quiet --eval '
+              try { rs.status(); } catch (e) { rs.initiate({_id: "rs0", members: [{_id: 0, host: "jeeva-mongo:27017"}]}); }
+              '
