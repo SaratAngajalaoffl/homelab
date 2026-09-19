@@ -4,12 +4,14 @@ Source: [SaratAngajalaoffl/jeeva](https://github.com/SaratAngajalaoffl/jeeva) (p
 services (Next.js `frontend`, Express `api`, Rust `engine`) plus MongoDB (config/state, needs a
 single-node replica set for change streams) and TimescaleDB (market data / decisions / positions).
 Images publish to `ghcr.io/saratangajalaoffl/jeeva/{api,engine,frontend}` on every push to `main`
-via `.github/workflows/publish.yml` in that repo — `docker/metadata-action`'s default rules tag
-both `main` and `latest` on a default-branch push, so this chart pins `latest@sha256:...` per
-image (once resolvable — see below) and lets Renovate bump the digest, same pattern as
-`helm/yggdrasil`. That's what gets you "updates when I push to main": push → GHCR publishes a new
-`latest` digest → Renovate opens a digest-bump PR → CI passes → automerges → ArgoCD's `selfHeal`
-picks it up.
+via `.github/workflows/publish.yml` in that repo. That workflow only ever tags `main` — despite
+`docker/metadata-action`'s docs describing a `latest=auto` flavor, that only fires for semver-tag
+pushes, not branch pushes, so **there is no `:latest` tag published** (confirmed by inspecting a
+successful publish run's `DOCKER_METADATA_OUTPUT_TAGS` output — it only ever contains
+`...:main`). This chart pins images to `main` (not digest-pinned yet — see "GHCR pull secret"
+below) and, once pinned, Renovate bumps the digest, same pattern as `helm/yggdrasil`. That's what
+gets you "updates when I push to main": push → GHCR publishes a new `main` digest → Renovate opens
+a digest-bump PR → CI passes → automerges → ArgoCD's `selfHeal` picks it up.
 
 ## Blocker 1 — GHCR pull secret (not yet created)
 
@@ -25,7 +27,26 @@ create it:
    under `template`, matching the shape of the other `sealed-*.yaml` files in this chart.
 5. `shred -u /tmp/ghcr-jeeva.json`, commit the sealed file, push.
 
-Until this exists, every pod here will sit in `ImagePullBackOff`.
+Until this exists, every pod here will sit in `ImagePullBackOff`. **Done as of 2026-09-20** — the
+secret exists and pulls are authenticating fine now; the `ImagePullBackOff` seen right after was
+actually blocker "0" below, not this one.
+
+## Blocker 0 — images aren't digest-pinned yet (tag is "main", mutable)
+
+`api`/`engine`/`frontend` are currently pinned to the tag `main`, not a digest, because resolving
+the digest needs the same `ghcr-jeeva` PAT and I (the agent) never hold that token — only you do.
+To pin it properly (recommended, matches every other stack in this repo):
+
+```bash
+echo <PAT> | docker login ghcr.io -u <gh-username> --password-stdin
+docker pull ghcr.io/saratangajalaoffl/jeeva/api:main
+docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/saratangajalaoffl/jeeva/api:main
+# repeat for engine and frontend
+```
+
+Then update each `tag:` in `values.yaml` to `"main@sha256:<digest>"`. Until then, `imagePullPolicy`
+defaults to `IfNotPresent`, so a running pod won't silently drift — but a fresh pod scheduled after
+a new push could pull a different `main` than what's been tested.
 
 ## Blocker 2 — no production migration path in the published image
 

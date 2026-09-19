@@ -76,10 +76,14 @@ timescaledb:
 api:
   image:
     repository: ghcr.io/saratangajalaoffl/jeeva/api
-    # Not digest-pinned yet — private image, can't be resolved without the
-    # GHCR pull secret. Pin to "latest@sha256:..." once that's set up, same
-    # as engine/frontend below and as helm/yggdrasil/values.yaml.
-    tag: "latest"
+    # publish.yml (in the jeeva repo) only tags "main" on a push to main —
+    # docker/metadata-action's default "latest=auto" flavor only fires for
+    # semver-tag pushes, not branch pushes, so there is no ":latest" tag to
+    # pull. Not yet digest-pinned either: I don't hold the ghcr-jeeva PAT
+    # (you do), so I can't resolve "main"'s digest myself — pin to
+    # "main@sha256:..." once you can (docker pull/inspect against ghcr.io
+    # with that PAT), same pattern as helm/yggdrasil/values.yaml.
+    tag: "main"
   imagePullSecrets: ["ghcr-jeeva"]
   port: 4000
   env:
@@ -96,7 +100,7 @@ api:
 engine:
   image:
     repository: ghcr.io/saratangajalaoffl/jeeva/engine
-    tag: "latest"
+    tag: "main"
   imagePullSecrets: ["ghcr-jeeva"]
   # No port — background worker only (decision/scheduler loop), same as
   # docker-compose.yml's engine service.
@@ -112,7 +116,7 @@ engine:
 frontend:
   image:
     repository: ghcr.io/saratangajalaoffl/jeeva/frontend
-    tag: "latest"
+    tag: "main"
   imagePullSecrets: ["ghcr-jeeva"]
   port: 3000
   # NOT effective at runtime — see CONTEXT.md "Frontend API URL is baked at
