@@ -83,7 +83,7 @@ api:
     # ghcr-jeeva PAT) so ArgoCD/Renovate can detect new pushes to "main" via
     # digest bumps, same pattern as helm/yggdrasil/values.yaml. Re-pin
     # manually until Renovate's digest-tracking picks this stack up.
-    tag: "main@sha256:d34376f55a854587c1cdf1f68b21c9ecad0df383292ee242588cb45f7188d9b6"
+    tag: "main@sha256:61dbf2746f07268460e698fad35047d7811e6f52597d50c346c68089cd3ecefe"
   imagePullSecrets: ["ghcr-jeeva"]
   port: 4000
   env:
