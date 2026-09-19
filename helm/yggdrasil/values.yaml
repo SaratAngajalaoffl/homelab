@@ -12,7 +12,7 @@ landing:
 web:
   image:
     repository: ghcr.io/yggdrasil-hq/yggdrasil-web
-    tag: "latest@sha256:8ef50b9256f19992389182f1f3999f7277b700fd64b63decc9cc144f6e42bf1a"
+    tag: "latest@sha256:0d47ce8aff292abb8e41bf9fb4e639e08f299d3d493428f6536b312bc399a995"
   port: 3000
   env:
     PORT: "3000"
