@@ -94,7 +94,7 @@ minio:
 api:
   image:
     repository: ghcr.io/yggdrasil-hq/yggdrasil-api
-    tag: "latest@sha256:dbdfc4838504f428e5c2e2d01c88ee5424a5e7b8ef6a95b5cfbd3dce7ee4f619"
+    tag: "latest@sha256:8e6b30951ed109193511f8bdd0f0bafaa00f971d1b16ca1c04f82499497bf05e"
   port: 3000
   env:
     PORT: "3000"
