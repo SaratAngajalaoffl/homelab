@@ -98,6 +98,41 @@ that image path — same PAT as blocker 1 above, or a separate narrowly-scoped o
 idempotent `rs.initiate()` script docker-compose.yml's `mongo-init` service used — safe to rerun
 every deploy, no manual step needed.
 
+## jeeva-public bootstrap (second instance, jeeva.trade)
+
+The chart now backs two ArgoCD Applications: `jeeva` (jeeva-internal, live trading,
+`jeeva.smugiwara.com`, namespace `homelab-jeeva`, untouched) and `jeeva-public`
+(paper-trading-only, `jeeva.trade`, namespace `homelab-jeeva-public`, brand new —
+`helm/jeeva/values-public.yaml` layers on top of `values.yaml`). Both API and engine get
+`PAPER_TRADING_ONLY` set (`"false"` for internal, `"true"` for public).
+
+The four `templates/sealed-*.yaml` files now target `{{ .Values.namespace }}` instead of a
+hardcoded `homelab-jeeva`, but their `encryptedData` is still the blobs kubeseal produced
+specifically for the `homelab-jeeva` namespace — kubeseal's default "strict" scope binds
+ciphertext to a namespace+name pair, so those blobs will fail to unseal under
+`homelab-jeeva-public`. Until resealed, `jeeva-public` pods will sit in `ImagePullBackOff`/
+`CreateContainerConfigError` for missing `ghcr-jeeva`/`jeeva-api-secrets`/`jeeva-db-secrets`/
+`jeeva-engine-secrets`. To bootstrap:
+
+1. Create the `homelab-jeeva-public` namespace exists (ArgoCD's `CreateNamespace=true` syncOption
+   handles this on first sync, or `KUBECONFIG=~/.kube/k3s-homelab.yaml kubectl create ns
+   homelab-jeeva-public` ahead of time).
+2. Redo blocker 1's GHCR pull secret steps (above) targeting `--namespace
+   homelab-jeeva-public` this time, and kubeseal against that namespace, writing the result to a
+   **new** file (e.g. `templates/sealed-ghcr-pull-secret-public.yaml`) rather than overwriting the
+   existing one — the same template file can't hold two different ciphertexts for two different
+   namespaces at once. Same approach for `jeeva-api-secrets`, `jeeva-db-secrets`, and
+   `jeeva-engine-secrets` (new random/independent credentials — this is a separate Mongo/
+   TimescaleDB, not a copy of jeeva-internal's data).
+3. Each new sealed-secret template's `metadata.namespace`/`template.metadata.namespace` should be
+   the literal `homelab-jeeva-public` (or `{{ .Values.namespace }}`, which resolves the same way
+   for this release) so it doesn't collide with the jeeva-internal one at the same template path.
+
+Note: `*.jeeva.trade` (wildcard) was mentioned as already routed to this cluster, but
+`homelab-common.ingress` (see `_ingress.tpl`) only renders a single-host Ingress — there's no
+subdomain routing wired up yet for `jeeva-public`. Add a real host there (via a new
+`ingress`-shaped value, or a wildcard TLS cert) if/when a use for it materializes.
+
 ## What's deliberately not wired up yet
 
 - `TYPESAFE_API_KEY` / `TYPESAFE_BASE_URL` / `HYPERLIQUID_PRIVATE_KEY` / `HYPERLIQUID_TESTNET` are

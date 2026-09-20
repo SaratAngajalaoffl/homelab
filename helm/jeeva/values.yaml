@@ -6,6 +6,13 @@
 #  2. api/deploy/Dockerfile now ships api/migrations/, and
 #     templates/db-migrate-job.yaml runs node-pg-migrate against
 #     jeeva-api-secrets' DATABASE_URL as a pre-install/pre-upgrade hook.
+#
+# This is the base values file for the "jeeva-internal" instance (live
+# trading, jeeva.smugiwara.com, ArgoCD Application "jeeva", untouched/
+# pre-existing — do not rename or reseal its secrets). A second instance,
+# "jeeva-public" (paper-trading-only, jeeva.trade), is deployed from this
+# same chart via ArgoCD Application "jeeva-public" layering
+# values-public.yaml on top of this file — see that file and CONTEXT.md.
 namespace: homelab-jeeva
 
 mongo:
@@ -89,6 +96,10 @@ api:
     PORT: "4000"
     MONGO_URL: "mongodb://jeeva-mongo:27017/jeeva"
     CORS_ORIGIN: "https://jeeva.smugiwara.com"
+    # This is "jeeva-internal" — live trading. The "jeeva-public" instance
+    # (separate ArgoCD Application/namespace, see values-public.yaml) is the
+    # paper-trading-only one at jeeva.trade.
+    PAPER_TRADING_ONLY: "false"
   # Secret must provide AUTH_USERNAME / AUTH_PASSWORD / JWT_SECRET /
   # DATABASE_URL (a full postgres:// URI pointed at jeeva-timescaledb, using
   # the same credentials as jeeva-db-secrets — k8s env var expansion can't
@@ -109,6 +120,7 @@ engine:
     # (OPENROUTER_BASE_URL in src/decision/openrouter_jev_decision_maker.rs)
     # so a per-PERP "openrouter" decision maker resolves here.
     OPENROUTER_BASE_URL: "https://openrouter.ai/api/alpha"
+    PAPER_TRADING_ONLY: "false"
   # Secret must provide DATABASE_URL (same value as jeeva-api-secrets'), and
   # MAY provide OPENROUTER_API_KEY (required for the "openrouter"
   # DecisionMaker — see templates/sealed-engine-secrets.yaml; engine/src/

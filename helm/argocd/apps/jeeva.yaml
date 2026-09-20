@@ -1,3 +1,10 @@
+# This is "jeeva-internal" (live trading, jeeva.smugiwara.com). Kept named
+# "jeeva" deliberately, not renamed to "jeeva-internal": Argo CD uses the
+# Application name as the Helm release name, and homelab-common's fullname
+# helper derives every resource/PVC name from it — renaming would recreate
+# the StatefulSets under new names and orphan the existing Mongo/TimescaleDB
+# data, which the user asked to keep as-is. See jeeva-public.yaml for the new
+# paper-trading-only instance at jeeva.trade.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

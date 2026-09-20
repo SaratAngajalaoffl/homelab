@@ -4,10 +4,11 @@ k8s equivalent of docker-compose.yml's mongo-init service. Idempotent
 (rs.status() short-circuits once already initiated), so it's safe to rerun
 on every install/upgrade rather than only once.
 */}}
+{{- $mongoFullname := include "homelab-common.fullname" (dict "root" $ "name" "mongo") -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: jeeva-mongo-rs-init
+  name: {{ include "homelab-common.fullname" (dict "root" $ "name" "mongo-rs-init") }}
   namespace: {{ .Values.namespace }}
   annotations:
     "helm.sh/hook": post-install,post-upgrade
@@ -24,6 +25,6 @@ spec:
           command: ["bash", "-c"]
           args:
             - >
-              mongosh --host jeeva-mongo:27017 --quiet --eval '
-              try { rs.status(); } catch (e) { rs.initiate({_id: "rs0", members: [{_id: 0, host: "jeeva-mongo:27017"}]}); }
+              mongosh --host {{ $mongoFullname }}:27017 --quiet --eval '
+              try { rs.status(); } catch (e) { rs.initiate({_id: "rs0", members: [{_id: 0, host: "{{ $mongoFullname }}:27017"}]}); }
               '

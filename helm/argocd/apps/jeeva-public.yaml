@@ -1,0 +1,30 @@
+# Second instance of the jeeva chart — paper-trading-only, at jeeva.trade.
+# Same chart/path as the "jeeva" Application (jeeva-internal, live trading),
+# just a different namespace and values-public.yaml layered on top. See
+# helm/jeeva/CONTEXT.md "jeeva-public bootstrap" before this will go healthy:
+# it needs its own GHCR pull secret and app secrets resealed for
+# homelab-jeeva-public.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jeeva-public
+  namespace: argocd
+spec:
+  project: homelab
+  source:
+    repoURL: git@github.com:SaratAngajalaoffl/homelab.git
+    targetRevision: main
+    path: helm/jeeva
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-public.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: homelab-jeeva-public
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
