@@ -18,7 +18,7 @@ namespace: homelab-jeeva
 mongo:
   image:
     repository: mongo
-    tag: "7@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca"
+    tag: "8@sha256:5d7043a4ffe02b9ed1b6e0bab057546981af5ca0a79107e9c461e49bc44c0a7b"
   port: 27017
   # Single-node replica set — required for the change streams the engine
   # uses to react to config updates (same as docker-compose.yml's mongo
@@ -89,7 +89,7 @@ api:
     # ghcr-jeeva PAT) so ArgoCD/Renovate can detect new pushes to "main" via
     # digest bumps, same pattern as helm/yggdrasil/values.yaml. Re-pin
     # manually until Renovate's digest-tracking picks this stack up.
-    tag: "main@sha256:5724bafdffc317ba3470cdca817c1b7d6621d446539ae6134831c9067391bfad"
+    tag: "main@sha256:4e7b2dd4e9ecacc5abff4d96ef8c11217af87e283b56af0e5465ea47b47e9d73"
   imagePullSecrets: ["ghcr-jeeva"]
   port: 4000
   env:
@@ -110,7 +110,7 @@ api:
 engine:
   image:
     repository: ghcr.io/saratangajalaoffl/jeeva/engine
-    tag: "main@sha256:e791b65beca31e194154d0c7a3784824ecca837fcdbb72958a1a8fb85f280885"
+    tag: "main@sha256:f46dc7d3b396cdc8ab7c056675bdec50bd10741b1d0e740e4a6b6532a52a3fc3"
   imagePullSecrets: ["ghcr-jeeva"]
   # No port — background worker only (decision/scheduler loop), same as
   # docker-compose.yml's engine service.
@@ -133,7 +133,7 @@ engine:
 frontend:
   image:
     repository: ghcr.io/saratangajalaoffl/jeeva/frontend
-    tag: "main@sha256:b06a23970199e191bb815f5223b378ef579d52c6120a38f8d060b4098fd4e607"
+    tag: "main@sha256:a11fe21557c7503ff6093385c7dcc2da86f567adfc00cba830e36d181f4dbe85"
   imagePullSecrets: ["ghcr-jeeva"]
   port: 3000
   # NOT effective at runtime — see CONTEXT.md "Frontend API URL is baked at
