@@ -121,7 +121,7 @@ engine:
 frontend:
   image:
     repository: ghcr.io/saratangajalaoffl/jeeva/frontend
-    tag: "main@sha256:a69f1d391b953074e541a0ecb3e32ca79bcae1072da185aeb90ff1e38bae262c"
+    tag: "main@sha256:b06a23970199e191bb815f5223b378ef579d52c6120a38f8d060b4098fd4e607"
   imagePullSecrets: ["ghcr-jeeva"]
   port: 3000
   # NOT effective at runtime — see CONTEXT.md "Frontend API URL is baked at
