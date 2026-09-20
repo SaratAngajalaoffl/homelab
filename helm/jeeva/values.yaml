@@ -107,11 +107,21 @@ api:
     # (separate ArgoCD Application/namespace, see values-public.yaml) is the
     # paper-trading-only one at jeeva.trade.
     PAPER_TRADING_ONLY: "false"
+    # Not secret — same as engine's OPENROUTER_BASE_URL. decisionMakers/status.js
+    # (src/decisionMakers/status.js) runs in this api service and reads
+    # OPENROUTER_API_KEY/TYPESAFE_API_KEY from *its own* process.env to report
+    # the dashboard's "Decision makers" configured/reachable state — the engine
+    # having these vars doesn't help api's copy, so this key is duplicated into
+    # jeeva-api-secrets too (see templates/sealed-api-secrets.yaml).
+    OPENROUTER_BASE_URL: "https://openrouter.ai/api/alpha"
   # Secret must provide AUTH_USERNAME / AUTH_PASSWORD / JWT_SECRET /
   # DATABASE_URL (a full postgres:// URI pointed at jeeva-timescaledb, using
   # the same credentials as jeeva-db-secrets — k8s env var expansion can't
   # reach across envFrom sources, so it's a full URI here rather than
-  # composed from POSTGRES_* pieces) — see templates/sealed-*.yaml.
+  # composed from POSTGRES_* pieces), and MAY provide OPENROUTER_API_KEY /
+  # TYPESAFE_API_KEY / TYPESAFE_BASE_URL (mirrors of engine's, so the
+  # dashboard's decision-maker status check — which runs in api, not engine —
+  # can see them) — see templates/sealed-*.yaml.
   envSecretName: jeeva-api-secrets
 
 engine:
