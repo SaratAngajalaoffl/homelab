@@ -26,6 +26,17 @@ engine:
     MONGO_URL: "mongodb://jeeva-public-mongo:27017/jeeva"
     PAPER_TRADING_ONLY: "true"
 
+timescaledb:
+  # values.yaml hardcodes this claimName to "jeeva-timescaledb-dumps", which
+  # only matches the PVC homelab-common.pvcs generates for the "jeeva"
+  # release name. For "jeeva-public" that PVC is
+  # "jeeva-public-timescaledb-dumps" — override here so the dumps volume
+  # actually resolves for this release.
+  extraVolumes:
+    - name: dumps
+      persistentVolumeClaim:
+        claimName: jeeva-public-timescaledb-dumps
+
 frontend:
   env:
     # See CONTEXT.md "Frontend API URL is baked at build time" — not
