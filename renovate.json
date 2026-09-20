@@ -7,12 +7,19 @@
   },
   "packageRules": [
     {
-      "description": "Auto-merge non-major bumps once CI passes; major bumps always need manual review.",
+      "description": "Group all updates within a stack (helm/<stack>/values.yaml) into a single PR instead of one PR per image.",
+      "matchFileNames": ["helm/*/values.yaml"],
+      "groupName": "{{packageFileDir}}",
+      "separateMajorMinor": false,
+      "separateMinorPatch": false
+    },
+    {
+      "description": "Auto-merge non-major bumps once CI passes; major bumps always need manual review. Because updates are grouped per stack, a group only auto-merges if every update in it qualifies here.",
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "automerge": true
     },
     {
-      "description": "Major version bumps never auto-merge, regardless of package.",
+      "description": "Major version bumps never auto-merge, regardless of package. A single major in a stack's group blocks automerge for the whole group.",
       "matchUpdateTypes": ["major"],
       "automerge": false
     },

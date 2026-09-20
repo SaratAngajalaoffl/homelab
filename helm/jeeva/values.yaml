@@ -105,10 +105,10 @@ engine:
   # docker-compose.yml's engine service.
   env:
     MONGO_URL: "mongodb://jeeva-mongo:27017/jeeva"
-    # Not secret — the engine's built-in default (OPENROUTER_BASE_URL in
-    # src/decision/openrouter_jev_decision_maker.rs) is the same value, set
-    # explicitly so a per-PERP "openrouter" decision maker resolves here.
-    OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1"
+    # Not secret — overrides the engine's built-in default
+    # (OPENROUTER_BASE_URL in src/decision/openrouter_jev_decision_maker.rs)
+    # so a per-PERP "openrouter" decision maker resolves here.
+    OPENROUTER_BASE_URL: "https://openrouter.ai/api/alpha"
   # Secret must provide DATABASE_URL (same value as jeeva-api-secrets'), and
   # MAY provide OPENROUTER_API_KEY (required for the "openrouter"
   # DecisionMaker — see templates/sealed-engine-secrets.yaml; engine/src/
