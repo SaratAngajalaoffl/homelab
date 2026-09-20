@@ -26,6 +26,14 @@ engine:
     MONGO_URL: "mongodb://jeeva-public-mongo:27017/jeeva"
     PAPER_TRADING_ONLY: "true"
 
+mongo:
+  # Same claimName hardcoding issue as timescaledb below, but for
+  # jeeva-mongo-dumps.
+  extraVolumes:
+    - name: dumps
+      persistentVolumeClaim:
+        claimName: jeeva-public-mongo-dumps
+
 timescaledb:
   # values.yaml hardcodes this claimName to "jeeva-timescaledb-dumps", which
   # only matches the PVC homelab-common.pvcs generates for the "jeeva"
