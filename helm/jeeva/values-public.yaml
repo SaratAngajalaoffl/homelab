@@ -49,10 +49,10 @@ frontend:
   env:
     # See CONTEXT.md "Frontend API URL is baked at build time" — not
     # effective at runtime for the same reason as the internal instance.
-    NEXT_PUBLIC_API_URL: "https://jeeva-api.trade"
+    NEXT_PUBLIC_API_URL: "https://api.jeeva.trade"
 
 frontendIngress:
   host: jeeva.trade
 
 apiIngress:
-  host: jeeva-api.trade
+  host: api.jeeva.trade
