@@ -18,7 +18,14 @@ namespace: homelab-jeeva
 mongo:
   image:
     repository: mongo
-    tag: "8@sha256:5d7043a4ffe02b9ed1b6e0bab057546981af5ca0a79107e9c461e49bc44c0a7b"
+    # Pinned back to 7 — Renovate auto-merged the 7->8 major bump (PR #90),
+    # but mongo 8 refuses to start against jeeva-internal's existing
+    # featureCompatibilityVersion 7.0 data ("Wrong mongod version" fatal on
+    # startup). Mongo doesn't support skipping the FCV-bump step on a live
+    # major upgrade, so this needs a deliberate, backed-up upgrade
+    # procedure, not a Renovate auto-merge. See CLAUDE.md's Renovate rule:
+    # majors/pinned DB images need manual review.
+    tag: "7@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca"
   port: 27017
   # Single-node replica set — required for the change streams the engine
   # uses to react to config updates (same as docker-compose.yml's mongo
