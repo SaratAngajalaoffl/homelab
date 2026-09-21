@@ -66,6 +66,8 @@ frontend:
     # API_URL is read at container start and served to the browser via
     # /runtime-config — see values.yaml's frontend.env comment.
     API_URL: "https://api.jeeva.trade"
+    # Public instance shows the demo-credentials banner on the login screen.
+    DEMO_MODE: "true"
 
 frontendIngress:
   host: jeeva.trade

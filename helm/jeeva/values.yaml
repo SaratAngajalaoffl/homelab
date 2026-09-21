@@ -174,6 +174,9 @@ frontend:
   # to the browser via /runtime-config, so this is effective at runtime).
   env:
     API_URL: "https://jeeva-api.smugiwara.com"
+    # Internal instance is live trading, not a demo — no demo-credentials
+    # banner. jeeva-public overrides this to "true" (see values-public.yaml).
+    DEMO_MODE: "false"
 
 # Publicly reachable with only jeeva's own login (AUTH_USERNAME/PASSWORD) in
 # front of it, same posture as atuin/webui/portainer — see
