@@ -3,7 +3,9 @@
   "extends": ["config:recommended", "docker:pinDigests"],
   "dependencyDashboard": true,
   "helm-values": {
-    "fileMatch": ["^helm/.+/values\\.yaml$"]
+    "managerFilePatterns": [
+      "/^helm/.+/values\\.yaml$/"
+    ]
   },
   "packageRules": [
     {
