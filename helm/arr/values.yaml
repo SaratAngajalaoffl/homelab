@@ -34,7 +34,7 @@ pod:
       storageClassName: local-path
 
   qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:latest@sha256:2be038f3421f60f62e8e4bf201f66f385b68e4fbc9ed3ab79051069ea22e2650
+    image: lscr.io/linuxserver/qbittorrent:latest@sha256:457e4eec2ee3f5e4ef59f237ad51f6143deba9f7445ab48bb5204a98888ef9aa
     env:
       PUID: "1000"
       PGID: "1000"
@@ -70,7 +70,7 @@ pod:
       storageClassName: local-path
 
   radarr:
-    image: lscr.io/linuxserver/radarr:latest@sha256:c960f2b52ec6542dbe6707c5a21e696a7c74fd8b17997454f4d10a55dacee133
+    image: lscr.io/linuxserver/radarr:latest@sha256:adb6c09d6b729ea5e642c99cea35af72702ef476bf4763f153299ac5db9f0b4f
     env:
       PUID: "1000"
       PGID: "1000"
