@@ -25,7 +25,7 @@ mongo:
     # major upgrade, so this needs a deliberate, backed-up upgrade
     # procedure, not a Renovate auto-merge. See CLAUDE.md's Renovate rule:
     # majors/pinned DB images need manual review.
-    tag: "7@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca"
+    tag: "8@sha256:5d7043a4ffe02b9ed1b6e0bab057546981af5ca0a79107e9c461e49bc44c0a7b"
   port: 27017
   # Single-node replica set — required for the change streams the engine
   # uses to react to config updates (same as docker-compose.yml's mongo
@@ -96,7 +96,7 @@ api:
     # ghcr-jeeva PAT) so ArgoCD/Renovate can detect new pushes to "main" via
     # digest bumps, same pattern as helm/yggdrasil/values.yaml. Re-pin
     # manually until Renovate's digest-tracking picks this stack up.
-    tag: "main@sha256:4e7b2dd4e9ecacc5abff4d96ef8c11217af87e283b56af0e5465ea47b47e9d73"
+    tag: "main@sha256:4f6774fe26e62424385c47180760ba1fa1a97f22111a57760ce33e8be0c44994"
   imagePullSecrets: ["ghcr-jeeva"]
   port: 4000
   env:
@@ -127,7 +127,7 @@ api:
 engine:
   image:
     repository: ghcr.io/saratangajalaoffl/jeeva/engine
-    tag: "main@sha256:f46dc7d3b396cdc8ab7c056675bdec50bd10741b1d0e740e4a6b6532a52a3fc3"
+    tag: "main@sha256:31a19274264cf2342f7df0c7fc2a0c14f0c348a40e1b1306b0621c5dd6e04a7f"
   imagePullSecrets: ["ghcr-jeeva"]
   # No port — background worker only (decision/scheduler loop), same as
   # docker-compose.yml's engine service.
@@ -150,7 +150,7 @@ engine:
 frontend:
   image:
     repository: ghcr.io/saratangajalaoffl/jeeva/frontend
-    tag: "main@sha256:a11fe21557c7503ff6093385c7dcc2da86f567adfc00cba830e36d181f4dbe85"
+    tag: "main@sha256:0756645405f2845ee1d2964525b1c1783917985f8c4548c70d99d2a17e07b731"
   imagePullSecrets: ["ghcr-jeeva"]
   port: 3000
   # NOT effective at runtime — see CONTEXT.md "Frontend API URL is baked at
