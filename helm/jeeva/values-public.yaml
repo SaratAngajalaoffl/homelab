@@ -17,7 +17,7 @@ api:
     # with the release name, so the mongo Service here is
     # "jeeva-public-mongo", not "jeeva-mongo" (values.yaml's default, correct
     # only for the "jeeva" release).
-    MONGO_URL: "mongodb://jeeva-public-mongo:27017/jeeva"
+    MONGO_URL: "mongodb://jeeva-public-mongo:27017/jeeva?directConnection=true"
     CORS_ORIGIN: "https://jeeva.trade"
     PAPER_TRADING_ONLY: "true"
     # Public instance floors how fast a visitor can configure market-data
@@ -28,7 +28,7 @@ api:
 
 engine:
   env:
-    MONGO_URL: "mongodb://jeeva-public-mongo:27017/jeeva"
+    MONGO_URL: "mongodb://jeeva-public-mongo:27017/jeeva?directConnection=true"
     PAPER_TRADING_ONLY: "true"
     # Explicit even though it matches the engine's own default (7) —
     # engine/src/market_data/retention.rs prunes sampled data older than

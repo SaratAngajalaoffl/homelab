@@ -108,7 +108,7 @@ api:
   port: 4000
   env:
     PORT: "4000"
-    MONGO_URL: "mongodb://jeeva-mongo:27017/jeeva"
+    MONGO_URL: "mongodb://jeeva-mongo:27017/jeeva?directConnection=true"
     CORS_ORIGIN: "https://jeeva.smugiwara.com"
     # This is "jeeva-internal" — live trading. The "jeeva-public" instance
     # (separate ArgoCD Application/namespace, see values-public.yaml) is the
@@ -143,7 +143,7 @@ engine:
   # No port — background worker only (decision/scheduler loop), same as
   # docker-compose.yml's engine service.
   env:
-    MONGO_URL: "mongodb://jeeva-mongo:27017/jeeva"
+    MONGO_URL: "mongodb://jeeva-mongo:27017/jeeva?directConnection=true"
     # Not secret — overrides the engine's built-in default
     # (OPENROUTER_BASE_URL in src/decision/openrouter_jev_decision_maker.rs)
     # so a per-PERP "openrouter" decision maker resolves here.
