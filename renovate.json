@@ -19,9 +19,10 @@
       "automerge": true
     },
     {
-      "description": "Major version bumps never auto-merge, regardless of package. A single major in a stack's group blocks automerge for the whole group.",
+      "description": "Major version bumps never auto-merge, regardless of package, and never group with a stack's routine minor/patch/digest bumps — a major landed disguised inside an otherwise-routine 'update helm/jeeva' PR twice (mongo 7->8, reverted in 16de7c1 and again in the mongo tag fix following PR #91) because grouping let a human merge it without noticing.",
       "matchUpdateTypes": ["major"],
-      "automerge": false
+      "automerge": false,
+      "groupName": null
     },
     {
       "description": "Immich server/ML move in lockstep and need release-note review before bumping.",
