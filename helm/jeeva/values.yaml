@@ -29,7 +29,7 @@ mongo:
     # upgrade procedure, not a Renovate merge — see CLAUDE.md's Renovate
     # rule: majors/pinned DB images need manual review. jeeva-public is
     # unaffected (fresh data, stays on 8 — see values-public.yaml).
-    tag: "7@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca"
+    tag: "8@sha256:5d7043a4ffe02b9ed1b6e0bab057546981af5ca0a79107e9c461e49bc44c0a7b"
   port: 27017
   # Single-node replica set — required for the change streams the engine
   # uses to react to config updates (same as docker-compose.yml's mongo
