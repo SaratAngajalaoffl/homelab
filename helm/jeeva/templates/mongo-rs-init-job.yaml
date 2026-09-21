@@ -3,6 +3,17 @@ Initiates the single-node replica set mongo needs for change streams — the
 k8s equivalent of docker-compose.yml's mongo-init service. Idempotent
 (rs.status() short-circuits once already initiated), so it's safe to rerun
 on every install/upgrade rather than only once.
+
+The replset member host is deliberately "127.0.0.1:27017", not the
+jeeva-mongo Service DNS name: mongod re-validates that host against its own
+listener on every restart (the "isSelf" check), and self-traffic through a
+k8s Service ClusterIP hairpins back to the same pod — something k3s's
+default flannel CNI doesn't reliably support. That made mongod fail its own
+isSelf check on every restart ("NodeNotFound... waiting for reconfig or
+remote heartbeat", which never arrives on a single-node set) and never
+recover on its own. Loopback sidesteps the hairpin path entirely. This only
+affects how mongod identifies itself; other pods still reach it externally
+via the jeeva-mongo Service as normal (MONGO_URL in api/engine env).
 */}}
 {{- $mongoFullname := include "homelab-common.fullname" (dict "root" $ "name" "mongo") -}}
 apiVersion: batch/v1
@@ -26,5 +37,5 @@ spec:
           args:
             - >
               mongosh --host {{ $mongoFullname }}:27017 --quiet --eval '
-              try { rs.status(); } catch (e) { rs.initiate({_id: "rs0", members: [{_id: 0, host: "{{ $mongoFullname }}:27017"}]}); }
+              try { rs.status(); } catch (e) { rs.initiate({_id: "rs0", members: [{_id: 0, host: "127.0.0.1:27017"}]}); }
               '

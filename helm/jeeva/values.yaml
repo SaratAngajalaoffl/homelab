@@ -18,18 +18,21 @@ namespace: homelab-jeeva
 mongo:
   image:
     repository: mongo
-    # Pinned back to 7 — this is the SECOND time a Renovate 7->8 major bump
-    # has landed on jeeva-internal (first: PR #90, reverted in 16de7c1;
-    # second: PR #91, merged 2026-09-21 bundled into an otherwise-routine
-    # digest-only update, which is what broke jeeva-mongo-0 this time).
-    # mongo 8 refuses to start against jeeva-internal's existing
-    # featureCompatibilityVersion 7.0 data ("Wrong mongod version" fatal on
-    # startup, exit code 62). Mongo doesn't support skipping the FCV-bump
-    # step on a live major upgrade, so this needs a deliberate, backed-up
-    # upgrade procedure, not a Renovate merge — see CLAUDE.md's Renovate
-    # rule: majors/pinned DB images need manual review. jeeva-public is
-    # unaffected (fresh data, stays on 8 — see values-public.yaml).
-    tag: "7@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca"
+    # On mongo 8 as of 2026-09-21, deliberately. Two prior Renovate 7->8
+    # major bumps (PR #90, reverted in 16de7c1; PR #91) broke jeeva-internal
+    # because mongo 8 refuses to start against the existing
+    # featureCompatibilityVersion 7.0 data ("Wrong mongod version", exit
+    # code 62) — mongo doesn't support skipping the FCV-bump step on a live
+    # major upgrade. Rather than run that upgrade procedure against trading
+    # data, this migration wiped jeeva-mongo-0's PVC (data-jeeva-mongo-0)
+    # and re-initiated a fresh mongo 8 replica set — see
+    # templates/mongo-rs-init-job.yaml's header comment for the other fix
+    # that landed alongside this (the replset self-identity/hairpin issue).
+    # App-level auth (AUTH_USERNAME/PASSWORD/JWT_SECRET in jeeva-api-secrets)
+    # is untouched — mongo itself never ran with --auth, so there was
+    # nothing in Mongo to preserve besides the trading data, which was
+    # explicitly OK to drop for this migration.
+    tag: "8@sha256:5d7043a4ffe02b9ed1b6e0bab057546981af5ca0a79107e9c461e49bc44c0a7b"
   port: 27017
   # Single-node replica set — required for the change streams the engine
   # uses to react to config updates (same as docker-compose.yml's mongo
