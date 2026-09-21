@@ -183,8 +183,8 @@ frontend:
 # docs/adr/0005-backup-restore.md "Public exposure and the netbird migration
 # plan".
 rateLimit:
-  average: 20
-  burst: 40
+  average: 100
+  burst: 200
 
 frontendIngress:
   enabled: true
