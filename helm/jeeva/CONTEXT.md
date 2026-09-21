@@ -70,19 +70,24 @@ Note: `node-pg-migrate`'s CLI binary is hoisted to `/repo/node_modules/.bin/` by
 not `/repo/api/node_modules/.bin/` — the Job's `command:` uses the absolute root path for that
 reason.
 
-## Frontend API URL is baked at build time
+## Frontend API URL — fixed upstream, now runtime-resolved
 
-`frontend/src/lib/api.ts` reads `process.env.NEXT_PUBLIC_API_URL` — Next.js inlines
-`NEXT_PUBLIC_*` vars into the static JS bundle **at build time**, and `frontend/deploy/Dockerfile`
-never receives it as a build arg, nor does `publish.yml` pass one. So the shipped image's browser
-bundle always calls its baked-in fallback, `http://localhost:4000`, regardless of the
-`NEXT_PUBLIC_API_URL` env var set on this chart's `frontend` container (which only affects
-server-side code, e.g. Next SSR, not the client fetch calls in `api.ts`). **The public dashboard
-at jeeva.smugiwara.com will not be able to reach the API until this is fixed upstream** — either
-pass `--build-arg NEXT_PUBLIC_API_URL=https://jeeva-api.smugiwara.com` in `publish.yml`'s
-`docker/build-push-action` step (and read it via `ARG`/`ENV` in the Dockerfile before `next
-build`), or switch the frontend to same-origin relative API calls behind a shared Ingress path.
-Not something fixable from this repo — it needs a jeeva-repo change.
+**Resolved upstream as of jeeva commit `98aeecb` ("feat(config): runtime api url, sampling floor,
+and market-data retention").** The old `NEXT_PUBLIC_API_URL` was inlined into the static JS bundle
+at build time and never actually reached the browser (see git history if this section's history
+matters). The frontend now reads `API_URL` at container start and serves it to the browser via
+`GET /runtime-config`, so one built image works across instances pointing at different API
+backends — no rebuild needed. This chart's `frontend.env.API_URL` (`values.yaml` /
+`values-public.yaml`) is what that route reads. **Requires the deployed frontend image to include
+commit `98aeecb` or later** — if the pinned `frontend.image.tag` digest predates it, re-pin before
+expecting this to take effect (`ghcr-jeeva` PAT, same digest-pin workflow as the other jeeva
+images).
+
+Two more env vars landed in the same commit:
+- `api.env.MIN_SAMPLING_FREQUENCY_SECONDS` — floor (seconds) on sampling frequency the api
+  accepts; defaults to 1. jeeva-public sets this to 60.
+- `engine.env.MARKET_DATA_TTL_DAYS` — sampled market-data retention; defaults to 7. Both instances
+  effectively run the default (7); jeeva-public sets it explicitly.
 
 ## Renovate and private GHCR
 

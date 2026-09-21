@@ -114,6 +114,10 @@ api:
     # having these vars doesn't help api's copy, so this key is duplicated into
     # jeeva-api-secrets too (see templates/sealed-api-secrets.yaml).
     OPENROUTER_BASE_URL: "https://openrouter.ai/api/alpha"
+    # Not set — internal instance keeps the api's default floor
+    # (MIN_SAMPLING_FREQUENCY_SECONDS, defaults to 1s in
+    # api/src/perps/frequency.ts). jeeva-public overrides this to 60s —
+    # see values-public.yaml.
   # Secret must provide AUTH_USERNAME / AUTH_PASSWORD / JWT_SECRET /
   # DATABASE_URL (a full postgres:// URI pointed at jeeva-timescaledb, using
   # the same credentials as jeeva-db-secrets — k8s env var expansion can't
@@ -138,6 +142,10 @@ engine:
     # so a per-PERP "openrouter" decision maker resolves here.
     OPENROUTER_BASE_URL: "https://openrouter.ai/api/alpha"
     PAPER_TRADING_ONLY: "false"
+    # Not set — internal instance keeps the engine's default retention
+    # (MARKET_DATA_TTL_DAYS, defaults to 7 in engine/src/market_data/
+    # retention.rs). jeeva-public overrides this explicitly to 7 too — see
+    # values-public.yaml.
   # Secret must provide DATABASE_URL (same value as jeeva-api-secrets'), and
   # MAY provide OPENROUTER_API_KEY (required for the "openrouter"
   # DecisionMaker — see templates/sealed-engine-secrets.yaml; engine/src/
@@ -153,11 +161,12 @@ frontend:
     tag: "main@sha256:0756645405f2845ee1d2964525b1c1783917985f8c4548c70d99d2a17e07b731"
   imagePullSecrets: ["ghcr-jeeva"]
   port: 3000
-  # NOT effective at runtime — see CONTEXT.md "Frontend API URL is baked at
-  # build time". Left here so the intent is documented even though the
-  # published image ignores it.
+  # API_URL replaces the old build-time-baked NEXT_PUBLIC_API_URL — see
+  # CONTEXT.md "Frontend API URL is baked at build time" (now resolved
+  # upstream: the frontend reads API_URL at container start and serves it
+  # to the browser via /runtime-config, so this is effective at runtime).
   env:
-    NEXT_PUBLIC_API_URL: "https://jeeva-api.smugiwara.com"
+    API_URL: "https://jeeva-api.smugiwara.com"
 
 # Publicly reachable with only jeeva's own login (AUTH_USERNAME/PASSWORD) in
 # front of it, same posture as atuin/webui/portainer — see

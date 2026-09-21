@@ -20,11 +20,20 @@ api:
     MONGO_URL: "mongodb://jeeva-public-mongo:27017/jeeva"
     CORS_ORIGIN: "https://jeeva.trade"
     PAPER_TRADING_ONLY: "true"
+    # Public instance floors how fast a visitor can configure market-data
+    # sampling, to keep it from hammering Hyperliquid on this deployment's
+    # behalf. api/src/perps/frequency.ts rejects any sampling config below
+    # this.
+    MIN_SAMPLING_FREQUENCY_SECONDS: "60"
 
 engine:
   env:
     MONGO_URL: "mongodb://jeeva-public-mongo:27017/jeeva"
     PAPER_TRADING_ONLY: "true"
+    # Explicit even though it matches the engine's own default (7) —
+    # engine/src/market_data/retention.rs prunes sampled data older than
+    # this many days.
+    MARKET_DATA_TTL_DAYS: "7"
 
 mongo:
   image:
@@ -54,9 +63,9 @@ timescaledb:
 
 frontend:
   env:
-    # See CONTEXT.md "Frontend API URL is baked at build time" — not
-    # effective at runtime for the same reason as the internal instance.
-    NEXT_PUBLIC_API_URL: "https://api.jeeva.trade"
+    # API_URL is read at container start and served to the browser via
+    # /runtime-config — see values.yaml's frontend.env comment.
+    API_URL: "https://api.jeeva.trade"
 
 frontendIngress:
   host: jeeva.trade
