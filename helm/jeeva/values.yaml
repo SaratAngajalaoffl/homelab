@@ -103,7 +103,7 @@ api:
     # ghcr-jeeva PAT) so ArgoCD/Renovate can detect new pushes to "main" via
     # digest bumps, same pattern as helm/yggdrasil/values.yaml. Re-pin
     # manually until Renovate's digest-tracking picks this stack up.
-    tag: "main@sha256:d44c029d3e1c46a17cc86969b9a11058eeb5a11bace78dcea9c6e9344c646e0e"
+    tag: "main@sha256:2a070be92db819dcc069dbd2fb565e35f26c71a788b3e734c4b740e2e189d5f4"
   imagePullSecrets: ["ghcr-jeeva"]
   port: 4000
   env:
@@ -138,7 +138,7 @@ api:
 engine:
   image:
     repository: ghcr.io/saratangajalaoffl/jeeva/engine
-    tag: "main@sha256:98563ce1f5e64830ce5f8d2596eb22ec3cb1dbdf4379b5bc55ec30ac7bc86c9e"
+    tag: "main@sha256:1186e41c979edec392feb25156c62c09b7a6d3882e0edf43880082a86c3de613"
   imagePullSecrets: ["ghcr-jeeva"]
   # No port — background worker only (decision/scheduler loop), same as
   # docker-compose.yml's engine service.
@@ -165,7 +165,7 @@ engine:
 frontend:
   image:
     repository: ghcr.io/saratangajalaoffl/jeeva/frontend
-    tag: "main@sha256:e944d9d4e7521084526a7cfa9b5d57e9ee77e6c1f1a0533703b293e8d3930461"
+    tag: "main@sha256:767c4d512a978e5de617dd4974578702ba7958069044df27f2f4e48a8cc8c275"
   imagePullSecrets: ["ghcr-jeeva"]
   port: 3000
   # API_URL replaces the old build-time-baked NEXT_PUBLIC_API_URL — see
