@@ -70,7 +70,7 @@ file-system backup, not volume snapshots):
 Then confirm it flips to `Available` (revalidation is on a 1-minute loop):
 
 ```
-kubectl -n velero get backupstoragelocation cloud
+kubectl -n velero get backupstoragelocation
 ```
 
 ## 2. The CRD job is disabled — don't re-enable it
@@ -119,7 +119,7 @@ kubectl -n velero get schedules.velero.io     # cloud-weekly listed
 TTL. Trigger one out of band:
 
 ```
-velero backup create cloud-manual-$(date +%Y%m%d) --storage-location cloud
+velero backup create cloud-manual-$(date +%Y%m%d) --storage-location cloud-manual
 velero backup describe cloud-manual-$(date +%Y%m%d) --details
 ```
 

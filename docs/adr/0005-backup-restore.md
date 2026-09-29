@@ -270,3 +270,32 @@ endpoint.
 - **ADR 0004's monitoring stack** (kube-prometheus-stack, Loki, Grafana) remains
   unbuilt. The watchdog covers backups specifically; Velero also exposes
   Prometheus metrics for whenever that stack lands.
+
+
+## 2026-09-30 — Folders by trigger, manual-only disk, backup dashboard
+
+- **Layout.** S3 backups are split into `automatic/k3s_backups/scheduled/` and
+  `.../manual/` (two BackupStorageLocations, `cloud-scheduled` / `cloud-manual`;
+  both prefixes must stay under `automatic/` for the IAM policy). Munin holds one
+  restic repo at `homelab-backups/manual/`.
+- **Disk is manual-only.** The weekly Munin restic job is suspended; the CronJob
+  remains as the job template. Rationale: ARR and other bulky data should land on
+  disk only when asked for, and the weekly whole-root run produced a 458 GiB
+  snapshot that took days.
+- **Scope of the scheduled cloud backup.** Excludes Secret objects (the Sealed
+  Secrets controller decrypts SealedSecrets into plain Secrets, so backing them up
+  puts plaintext in S3), `homelab-arr`, `homelab-ollama`, and the `velero`
+  namespace (its own Kopia maintenance-job pods carry emptyDirs that fs-backup
+  fails on, turning runs `PartiallyFailed`, which the watchdog does not count).
+- **Trigger.** backups.smugiwara.com (helm/backup-ui, source in
+  SaratAngajalaoffl/homelab-backup-ui) starts manual backups by category. The
+  internet-facing web pod can only create request ConfigMaps; a separate
+  dispatcher pod re-validates and creates the Velero Backup / restic Job, so a
+  compromised web pod cannot inject exec hooks or host mounts. Whole site is
+  behind Basic Auth (Sealed Secret).
+- **Reset.** All prior backups (Velero backups + leftover Kopia data under
+  `automatic/k3s_backups/`, and the restic repo on Munin) were deleted on this
+  date to start clean under the new layout.
+- **Known limitations.** Categories are namespace groups (no per-PVC selection).
+  The disk list is built from Job history, not the restic repo. Restore is not
+  implemented in the UI.

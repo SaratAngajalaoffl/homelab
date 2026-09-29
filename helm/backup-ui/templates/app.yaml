@@ -1,3 +1,33 @@
+{{/* One image, two Deployments: "web" (internet-facing) and "dispatcher"
+     (no Service, no Ingress). They differ in ServiceAccount, and therefore in
+     what the API server lets them do - see rbac.yaml. */}}
+{{- define "backup-ui.env" -}}
+- { name: VELERO_NS, value: {{ .Values.velero.namespace | quote }} }
+- { name: LOCAL_NS, value: {{ .Values.local.namespace | quote }} }
+- { name: LOCAL_CRONJOB, value: {{ .Values.local.cronjob | quote }} }
+- { name: WATCHDOG_CRONJOB, value: {{ .Values.local.watchdogCronjob | quote }} }
+- { name: SEALED_CERT_URL, value: {{ .Values.sealedSecrets.certUrl | quote }} }
+- { name: STATE_NS, value: {{ .Values.namespace | quote }} }
+- { name: STATE_CONFIGMAP, value: {{ .Values.sealedSecrets.exportConfigMap | quote }} }
+- { name: CLOUD_MAX_AGE_HOURS, value: {{ .Values.maxAgeHours.cloud | quote }} }
+- { name: DISK_MAX_AGE_HOURS, value: {{ .Values.maxAgeHours.disk | quote }} }
+- { name: MANUAL_LOCATION, value: {{ .Values.manual.cloudLocation | quote }} }
+- { name: MANUAL_TTL, value: {{ .Values.manual.ttl | quote }} }
+- { name: CATEGORIES_FILE, value: /etc/backup-ui/categories.json }
+{{- end }}
+{{- define "backup-ui.podspec" -}}
+serviceAccountName: {{ .sa }}
+{{- with .root.Values.imagePullSecrets }}
+imagePullSecrets: {{ toYaml . | nindent 2 }}
+{{- end }}
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  seccompProfile: { type: RuntimeDefault }
+volumes:
+  - name: categories
+    configMap: { name: backup-ui-categories }
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -16,15 +46,10 @@ spec:
       labels:
         app.kubernetes.io/name: backup-ui
         homelab.smugiwara.com/stack: backup-ui
+      annotations:
+        checksum/categories: {{ .Values.categories | toJson | sha256sum }}
     spec:
-      serviceAccountName: backup-ui
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets: {{ toYaml . | nindent 8 }}
-      {{- end }}
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65532
-        seccompProfile: { type: RuntimeDefault }
+      {{- include "backup-ui.podspec" (dict "root" . "sa" "backup-ui") | nindent 6 }}
       containers:
         - name: backup-ui
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -35,21 +60,54 @@ spec:
             capabilities: { drop: ["ALL"] }
           env:
             - { name: LISTEN, value: {{ printf ":%v" .Values.port | quote }} }
-            - { name: VELERO_NS, value: {{ .Values.velero.namespace | quote }} }
-            - { name: LOCAL_NS, value: {{ .Values.local.namespace | quote }} }
-            - { name: LOCAL_CRONJOB, value: {{ .Values.local.cronjob | quote }} }
-            - { name: WATCHDOG_CRONJOB, value: {{ .Values.local.watchdogCronjob | quote }} }
-            - { name: SEALED_CERT_URL, value: {{ .Values.sealedSecrets.certUrl | quote }} }
-            - { name: STATE_NS, value: {{ .Values.namespace | quote }} }
-            - { name: STATE_CONFIGMAP, value: {{ .Values.sealedSecrets.exportConfigMap | quote }} }
-            - { name: CLOUD_MAX_AGE_HOURS, value: {{ .Values.maxAgeHours.cloud | quote }} }
-            - { name: DISK_MAX_AGE_HOURS, value: {{ .Values.maxAgeHours.disk | quote }} }
+            {{- include "backup-ui.env" . | nindent 12 }}
           ports:
             - { name: http, containerPort: {{ .Values.port }} }
           readinessProbe:
             httpGet: { path: /healthz, port: http }
           livenessProbe:
             httpGet: { path: /healthz, port: http }
+          volumeMounts:
+            - { name: categories, mountPath: /etc/backup-ui, readOnly: true }
+          resources: {{ toYaml .Values.resources | nindent 12 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backup-ui-dispatcher
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: backup-ui-dispatcher
+    homelab.smugiwara.com/stack: backup-ui
+spec:
+  replicas: 1
+  # Two dispatchers would race on the same requests.
+  strategy: { type: Recreate }
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backup-ui-dispatcher
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backup-ui-dispatcher
+        homelab.smugiwara.com/stack: backup-ui
+      annotations:
+        checksum/categories: {{ .Values.categories | toJson | sha256sum }}
+    spec:
+      {{- include "backup-ui.podspec" (dict "root" . "sa" "backup-ui-dispatcher") | nindent 6 }}
+      containers:
+        - name: dispatcher
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["dispatch"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          env:
+            {{- include "backup-ui.env" . | nindent 12 }}
+          volumeMounts:
+            - { name: categories, mountPath: /etc/backup-ui, readOnly: true }
           resources: {{ toYaml .Values.resources | nindent 12 }}
 ---
 apiVersion: v1

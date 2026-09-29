@@ -82,7 +82,9 @@ spec:
                 - |
                   set -eu
 
-                  newest=$(kubectl -n velero get backups.velero.io \
+                  # Only SCHEDULED backups count (they carry the schedule-name
+                  # label). A manual backup must not mask a missed weekly run.
+                  newest=$(kubectl -n velero get backups.velero.io -l velero.io/schedule-name \
                     -o jsonpath='{range .items[?(@.status.phase=="Completed")]}{.status.completionTimestamp}{"\n"}{end}' \
                     2>/dev/null | sort -r | head -1)
 

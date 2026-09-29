@@ -1,0 +1,13 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: backup-ui-basic-auth
+  namespace: homelab-backup-ui
+spec:
+  encryptedData:
+    users: AgCr3zBBChO4Jw3LGQliyMRbgLt62lWeDNrb7L73EHIAfIk2AW6xBNkEayXjATE0nppN63zl5T+7qdn249I+QQJu4rTBJW4L3ydQX/QPV55+B17vMYQg3Of5HSXBLGMaX7iEijs10fEeskfzUkuAjrFuIZ0+awUL3VzOWaO2weq/L7+hovN4OSrfC2J/Y6Iwz0pqu7drIC+PAx0gO8DZqhhn73gQN9nVPBLnrZKCS4Mqh4bd92tOZOdXheOLyuEAbNREj8GnqR9DQEVDUDVQpXhuI2jCeGber2sb+KBEyd/kpWFcgs4paBUCxY67CW5q0H3wcHaiz1Ef5U5ht57PRYd3+yqPVyD5PPfgKN+4mGWfjQ/Vo+B1QtQ9Qwq95b4A6NH9j63kIoY/Mt68HUMe8p5oY57RoBZfrZjv7TpTIrVwUbz3r70wCJ0MBSjjnIE9ciS4qA0Bs98pqTsStp0PrB2InQ4ntBLbvMDUaNbops1mE/TLNdXaVDq3hUMtT3SQWP8LiKa/1E+bdl+Aps/v8z+bmZgUAZMfHmaXTUxe1PyGPQCiaRoDNBXiC+Qokr1qTPyVRC8Spif7SRLoASbtXk3gc2T+xBi4fCLmsSC2aYKXaQCvEqHHQ4HyGYtjHzn9ZvepJDiamJU5O0wIw7k5xFCdo7wk2d5OQM4hCkdMgTNrk7UKXNSCHrpEsad5o04ReYULtUFj98cJoOsR8ipvJEOdaqVGzCnAdXwGnFJI0cdKvLxiY4uX6urHJQvz
+  template:
+    metadata:
+      name: backup-ui-basic-auth
+      namespace: homelab-backup-ui

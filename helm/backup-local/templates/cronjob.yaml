@@ -16,13 +16,18 @@ metadata:
     homelab.smugiwara.com/stack: backup-local
 spec:
   schedule: {{ .Values.schedule | quote }}
+  # Suspended: disk backups are MANUAL-ONLY. This CronJob is kept purely as the
+  # job template — backups.smugiwara.com (helm/backup-ui's dispatcher) creates
+  # Jobs from it, injecting BACKUP_NAMESPACES/BACKUP_TAGS for the categories the
+  # operator ticked. Change `suspend` in values to bring the weekly run back.
+  suspend: {{ .Values.suspend }}
   # A backup run can outlive its window; never let two overlap on one repo.
   concurrencyPolicy: Forbid
   # If the node was down at 04:00 Sunday, don't fire a late catch-up run days
   # later — the next scheduled run is soon enough, and a surprise backup
   # holding the repo lock is worse than a skipped one.
   startingDeadlineSeconds: 3600
-  successfulJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 20
   failedJobsHistoryLimit: 5
   jobTemplate:
     spec:
@@ -76,23 +81,51 @@ spec:
                     restic init
                   fi
 
-                  echo "Backing up {{ .Values.pvcRoot }} ..."
-                  restic backup /pvcs \
-                    --tag homelab \
+                  # BACKUP_NAMESPACES is set by the dispatcher for manual runs (a
+                  # comma-separated list). local-path names PVC directories
+                  # pvc-<uid>_<namespace>_<claim>, so matching on _<namespace>_
+                  # selects exactly one namespace's volumes (homelab-jeeva does
+                  # NOT match homelab-jeeva-public).
+                  #
+                  # When unset (the suspended weekly schedule being re-enabled),
+                  # fall back to the whole root as before.
+                  if [ -n "${BACKUP_NAMESPACES:-}" ]; then
+                    set --
+                    for ns in $(echo "${BACKUP_NAMESPACES}" | tr ',' ' '); do
+                      for d in /pvcs/*_"${ns}"_*; do
+                        if [ -d "$d" ]; then set -- "$@" "$d"; fi
+                      done
+                    done
+                    if [ "$#" -eq 0 ]; then
+                      echo "FATAL: no PVC directories found for namespaces: ${BACKUP_NAMESPACES}" >&2
+                      exit 1
+                    fi
+                    TAGS="manual${BACKUP_TAGS:+,${BACKUP_TAGS}}"
+                    echo "Backing up $# volume(s) for namespaces: ${BACKUP_NAMESPACES} (tags: ${TAGS})"
+                  else
+                    set -- /pvcs
+                    TAGS="homelab"
+                    echo "Backing up {{ .Values.pvcRoot }} (whole root) ..."
+                  fi
+
+                  restic backup "$@" \
+                    --tag "${TAGS}" \
                     --host loki \
                     --exclude-caches \
                     --one-file-system
 
-                  echo "Pruning old snapshots (keeping last {{ .Values.retention.keepLast }}) ..."
+                  # Group by tag set so each category combination keeps its own
+                  # last N, instead of a large backup evicting a small one.
+                  echo "Pruning old snapshots (keeping last {{ .Values.retention.keepLast }} per tag set) ..."
                   restic forget \
-                    --tag homelab \
+                    --group-by tags \
                     --keep-last {{ .Values.retention.keepLast }} \
                     --prune
 
                   echo "Verifying repository structure ..."
                   restic check
 
-                  restic snapshots --tag homelab --compact | tail -5
+                  restic snapshots --compact | tail -8
               volumeMounts:
                 - name: pvcs
                   mountPath: /pvcs

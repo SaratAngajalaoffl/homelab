@@ -6,7 +6,7 @@ see `helm/argocd/CONTEXT.md`.
 
 ## Velero is the cloud half only
 
-One `BackupStorageLocation` (`cloud`, a real S3 bucket in `ap-south-1`), one
+Two `BackupStorageLocation`s on one S3 bucket in `ap-south-1`: `cloud-scheduled` (`automatic/k3s_backups/scheduled/`, the weekly Schedule) and `cloud-manual` (`.../manual/`, started from backups.smugiwara.com), one
 automatic weekly Schedule. The local external-drive backup is a separate
 stack, `helm/backup-local`, using restic.
 

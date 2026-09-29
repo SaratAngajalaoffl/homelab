@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-ui-categories
+  namespace: {{ .Values.namespace }}
+  labels:
+    homelab.smugiwara.com/stack: backup-ui
+data:
+  categories.json: |
+    {{- .Values.categories | toJson | nindent 4 }}

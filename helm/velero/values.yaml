@@ -79,25 +79,34 @@ credentials:
   useSecret: false
 
 configuration:
+  # Two locations, one per folder, so scheduled and manual backups never mix:
+  #   s3://loki-homelab-backup/automatic/k3s_backups/scheduled/  (weekly Schedule)
+  #   s3://loki-homelab-backup/automatic/k3s_backups/manual/     (started from backups.smugiwara.com)
+  # Both share the bucket and credential; only the prefix differs. Each prefix
+  # gets its own Kopia repository, so retention/maintenance are independent.
   backupStorageLocation:
-    - name: cloud
+    - name: cloud-scheduled
       provider: aws
       default: true
       bucket: loki-homelab-backup
       # REQUIRED, not cosmetic. The IAM policy on loki-homelab-backup-service
       # scopes s3:ListBucket with a condition of s3:prefix = "automatic/*", and
       # the object actions to arn:...:loki-homelab-backup/automatic/*. Velero
-      # validates a BackupStorageLocation by listing it, so without a prefix
-      # under automatic/ it lists at the bucket root, falls outside the
-      # condition, and the BSL stays Unavailable with AccessDenied — which is
-      # exactly how it presented before this was set.
-      #
-      # The k3s_backups/ subdirectory keeps this cluster's data separable from
-      # anything else that writes under automatic/. It stays INSIDE automatic/
-      # deliberately: the IAM condition is StringLike "automatic/*", so a
-      # nested prefix still matches, but moving it out from under automatic/
-      # would break the policy.
-      prefix: automatic/k3s_backups
+      # validates a BackupStorageLocation by listing it, so the prefix MUST stay
+      # under automatic/ or the BSL is Unavailable with AccessDenied. Both
+      # prefixes below are nested inside automatic/k3s_backups/, which keeps this
+      # cluster's data separable from anything else under automatic/ (other
+      # tools write backups/, kopia/ and *.tar.gz.gpg files there).
+      prefix: automatic/k3s_backups/scheduled
+      config:
+        region: ap-south-1
+      credential:
+        name: velero-cloud-credentials
+        key: cloud
+    - name: cloud-manual
+      provider: aws
+      bucket: loki-homelab-backup
+      prefix: automatic/k3s_backups/manual
       config:
         region: ap-south-1
       credential:
@@ -115,7 +124,7 @@ schedules:
     # relative to the week. "0 3 * * 0" is an actual weekly run, Sundays 03:00.
     schedule: "0 3 * * 0"
     template:
-      storageLocation: cloud
+      storageLocation: cloud-scheduled
       # Target: keep the last two backups. Velero has NO count-based retention
       # primitive — ttl is the only lever, and it is time-based. At a weekly
       # cadence 336h (14d = two cycles) holds two backups at steady state, and

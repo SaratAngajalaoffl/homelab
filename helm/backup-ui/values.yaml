@@ -1,7 +1,10 @@
-# Read-only backup dashboard. v1 has NO write path: its RBAC grants get/list
-# only, so a compromised pod can read backup metadata but cannot start a
-# backup, restore, or delete anything. Triggers/restore arrive in a later
-# version with their own, separately reviewed RBAC.
+# Backup dashboard + manual trigger. Two processes from one image:
+#   web         internet-facing, behind Basic Auth. Read-only RBAC plus the right
+#               to create request ConfigMaps - nothing else.
+#   dispatcher  no ingress. Re-validates requests against `categories` below and
+#               is the only thing allowed to create Velero Backups and restic Jobs.
+# So a compromised web pod cannot craft a Backup with exec hooks or a Job that
+# mounts host paths. Restore is not implemented yet.
 namespace: homelab-backup-ui
 
 image:
@@ -9,7 +12,7 @@ image:
   # Source and CI live in https://github.com/SaratAngajalaoffl/homelab-backup-ui;
   # a vX.Y.Z tag there publishes :X.Y.Z. Public image, so no pull secret.
   # Renovate bumps this tag like any other image.
-  tag: "0.1.0"
+  tag: "0.2.0"
   pullPolicy: IfNotPresent
 imagePullSecrets: []
 
@@ -27,7 +30,55 @@ local:
 # helm/backup-local's watchdog.maxAgeHours).
 maxAgeHours:
   cloud: 192
-  disk: 192
+  # 0 = disk backups are manual-only, so age is never reported as a fault.
+  disk: 0
+
+# Where manual backups go. Must match helm/velero's BackupStorageLocations and
+# helm/backup-local's resticRepoSubpath (homelab-backups/manual on Munin).
+manual:
+  cloudLocation: cloud-manual
+  ttl: "720h0m0s"   # 30 days
+
+# What the operator can tick. Category = group of NAMESPACES: a stack's database
+# dumps live in its own namespace, so databases cannot be split from the app
+# around them. A namespace in no category cannot be backed up manually - add new
+# stacks here. Selection applies to both targets (S3 and Munin).
+categories:
+  - id: apps
+    name: Apps & databases
+    description: All small stacks (atuin, bifrost, hermes, jeeva, jeeva-public, netbird, nextcloud, openclaw, portainer, searxng, webui, yggdrasil) including their database dumps and config.
+    default: true
+    namespaces:
+      - homelab-atuin
+      - homelab-bifrost
+      - homelab-hermes
+      - homelab-jeeva
+      - homelab-jeeva-public
+      - homelab-netbird
+      - homelab-nextcloud
+      - homelab-openclaw
+      - homelab-portainer
+      - homelab-searxng
+      - homelab-webui
+      - homelab-yggdrasil
+  - id: immich
+    name: Immich photos
+    description: Photo/video library plus its database. Large (~75 GB) - expect a long upload to S3.
+    default: false
+    namespaces:
+      - homelab-immich
+  - id: arr
+    name: ARR suite
+    description: Sonarr/Radarr/Prowlarr/qBittorrent/Jellyfin/Seerr config and state. Media itself is hostPath and is never backed up.
+    default: false
+    namespaces:
+      - homelab-arr
+  - id: ollama
+    name: Ollama models
+    description: Downloaded model weights (~22 GB). Re-pullable, so usually not worth backing up.
+    default: false
+    namespaces:
+      - homelab-ollama
 
 sealedSecrets:
   # PUBLIC certificate endpoint: its NotBefore is the newest signing key's
@@ -36,14 +87,21 @@ sealedSecrets:
   # ConfigMap stamped by scripts/k8s-secrets/copy_secrets.sh after each export.
   exportConfigMap: secrets-export
 
+auth:
+  # Traefik BasicAuth over the whole host. The htpasswd lives in
+  # templates/sealed-basic-auth.yaml (SealedSecret "backup-ui-basic-auth", key
+  # "users"). The plaintext password is NOT in git: it was saved once to
+  # ~/.backup-ui-password on the operator's machine. To rotate, re-seal that
+  # secret (see CONTEXT.md).
+  secretName: backup-ui-basic-auth
+
 ingress:
   enabled: true
   host: backups.smugiwara.com
   className: traefik
   clusterIssuer: letsencrypt-prod
-  # TEMPORARILY PUBLIC with no auth (deliberate, until auth is designed).
-  # The page is read-only backup metadata; target state is netbird-only per
-  # docs/adr/0005-backup-restore.md.
+  # Public but behind Basic Auth (auth.secretName). Target state remains
+  # netbird-only per docs/adr/0005-backup-restore.md.
 
 resources:
   requests: { cpu: 10m, memory: 32Mi }

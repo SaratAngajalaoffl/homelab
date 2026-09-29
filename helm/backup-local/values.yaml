@@ -24,6 +24,10 @@ image:
 #   kubectl -n homelab-backup-local create job --from=cronjob/backup-local manual-$(date +%Y%m%d)
 schedule: "0 4 * * 0"
 
+# Disk backups are manual-only (see templates/cronjob.yaml). The CronJob stays
+# as the job template that helm/backup-ui instantiates.
+suspend: true
+
 # Must provide RESTIC_PASSWORD. Never committed — see .setup.
 envSecretName: backup-local-secrets
 
@@ -41,7 +45,10 @@ pvcRoot: /var/lib/rancher/k3s/storage
 # had. The mountpoint check in the job script is the second line of defence,
 # for the case where the directory lingers after an unclean unplug.
 driveHostPath: /run/media/mugiwara/munin
-resticRepoSubpath: restic
+# Organised as <root>/manual/: the disk equivalent of the S3
+# automatic/k3s_backups/manual/ folder. Everything on Munin from this system
+# lives under homelab-backups/.
+resticRepoSubpath: homelab-backups/manual
 
 # Keep the last two snapshots, nothing else. restic's --keep-last is a true
 # count-based policy: `forget` runs only after a SUCCESSFUL backup, so a failed
@@ -53,7 +60,7 @@ resticRepoSubpath: restic
 # Was keepDaily 7 / keepWeekly 5 / keepMonthly 6, which on a weekly cadence
 # retained roughly seven recent snapshots plus about six monthly ones.
 retention:
-  keepLast: 2
+  keepLast: 3
 
 # Dead-man's-switch over the velero cloud backup — see templates/watchdog.yaml.
 # Lives in this stack rather than helm/velero because velero is a values-only

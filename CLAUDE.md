@@ -31,11 +31,13 @@ helm upgrade --install <stack> ./helm/<stack> -n homelab-<stack> --create-namesp
 # Backup status — both destinations, one read-only view (safe mid-backup)
 ./scripts/backup/status.sh
 
-# Backups. Cloud is automatic (weekly Schedule); everything else is manual.
+# Backups. Cloud is automatic (weekly Schedule -> S3 scheduled/ folder); disk is manual-only.
+# Manual backups of chosen categories to S3 (manual/ folder) and/or Munin: https://backups.smugiwara.com
 velero backup get
-velero backup create cloud-manual-$(date +%Y%m%d) --storage-location cloud
+velero backup create cloud-manual-$(date +%Y%m%d) --storage-location cloud-manual
 velero restore create --from-backup <backup-name>
-kubectl -n homelab-backup-local create job --from=cronjob/backup-local manual-$(date +%Y%m%d)
+# (disk backups: prefer the form at backups.smugiwara.com, which lets you pick categories)
+kubectl -n homelab-backup-local create job --from=cronjob/backup-local manual-$(date +%Y%m%d)   # whole PVC root
 
 # Restore from JSON (stdin or clipboard)
 ./scripts/env/apply_env.sh
@@ -56,7 +58,7 @@ kubectl -n homelab-backup-local create job --from=cronjob/backup-local manual-$(
 - **Traefik must keep its `LoadBalancer` Service.** ADR 0004's consequences section says to patch it to `ClusterIP` so it does not compete with `nginx-proxy-manager` for host ports 80/443. That instruction is obsolete and now destructive: NPM is retired and Traefik is the sole public listener, so patching it to `ClusterIP` takes every service offline. Re-read that note as history only.
 - **New stacks go through ArgoCD, not manual `helm upgrade`,** once `helm/argocd/apps/00-project.yaml`'s AppProject scope covers them — add a `helm/argocd/apps/<stack>.yaml` Application pointing at `helm/<stack>` and let ArgoCD's sync bring it up. See `helm/argocd/CONTEXT.md`.
 - **Public admin UIs are rate-limited, not private — yet.** `argocd`, `headlamp`, `portainer`, the `arr` suite and `openclaw` are internet-facing with app-level auth only, several of them cluster-admin- or host-root-equivalent if breached. Each carries a Traefik `rateLimit` middleware as an interim mitigation. The agreed target state is netbird-only access; see `docs/adr/0005-backup-restore.md` "Public exposure and the netbird migration plan" before adding another public route.
-- **Backups: two tools, two destinations.** `helm/velero` backs up all namespaces to S3 weekly (Kubernetes objects + PVC data via Kopia). `helm/backup-local` runs a weekly restic job to the munin external drive (PVC data only, encrypted, works on exFAT). Databases are dumped by Velero pre-backup hooks into a `dumps` PVC rather than copied live — never add a database stack without one. `arr`/`jellyfin` media is hostPath and deliberately not backed up.
+- **Backups: two tools, two destinations, organised by trigger.** `helm/velero` backs up to S3 weekly (Kubernetes objects minus Secrets + PVC data via Kopia) into `automatic/k3s_backups/scheduled/`; manual S3 backups go to `.../manual/` (separate BackupStorageLocations `cloud-scheduled` / `cloud-manual`). `helm/backup-local` is a **suspended** restic CronJob used only as a job template: disk backups are **manual-only** and land in `<munin>/homelab-backups/manual/` (encrypted restic, works on exFAT). Manual runs of both are started from `backups.smugiwara.com` (helm/backup-ui), which lets you pick categories (namespace groups). Excluded from the scheduled cloud backup: Secrets objects (rebuilt from git + `copy_secrets.sh`), `homelab-arr`, `homelab-ollama`, `velero`. Databases are dumped by Velero pre-backup hooks into a `dumps` PVC rather than copied live — never add a database stack without one. `arr`/`jellyfin` media is hostPath and deliberately not backed up.
 - **Image updates arrive as Renovate PRs**, not by manually diffing registries or via a monitor-only tool. `renovate.json` scans `helm/*/values.yaml` for `image.repository`/`image.tag`; minor/patch/digest bumps auto-merge, majors and pinned DB images need manual review. There is no watchtower-equivalent left running in-cluster — Renovate PRs against git are the awareness+remediation mechanism now that ArgoCD makes `git push` the deploy step. `.github/workflows/ci.yml` renders and lints every chart so automerge has a real status check; it does not vet image contents.
 
 ## Architecture
@@ -137,9 +139,9 @@ Store exported JSON in a vault (e.g. Bitwarden), not in git.
 | `yggdrasil` | Self-hosted deploy of the user's own [yggdrasil-hq/yggdrasil-core](https://github.com/yggdrasil-hq/yggdrasil-core) (AI-orchestrated dev platform, pre-alpha). GHCR images, not built from source. Shares this same k3s cluster (ADR 0004's rationale #3) — the Orchestrator targets this cluster's API directly. |
 | `argocd` | GitOps delivery layer — app-of-apps managing every stack above via `git push` to `main`. See `helm/argocd/CONTEXT.md`. |
 | `headlamp` | Cluster dashboard UI, installed from the upstream chart (no local `Chart.yaml`). |
-| `velero` | Weekly cloud backup of all namespaces to S3; PVC data via Kopia fs-backup, databases via pre-backup dump hooks. Values-only, upstream chart. See `helm/velero/CONTEXT.md`. |
-| `backup-local` | Weekly restic backup of every PVC to the munin external drive, plus the healthchecks.io backup watchdog. Encrypted, and works on the drive's exFAT filesystem. |
-| `backup-ui` | Read-only dashboard over Velero + restic backups and Sealed Secrets key age. Chart only; app source/CI are in the separate `homelab-backup-ui` repo (image `ghcr.io/saratangajalaoffl/homelab-backup-ui`). Currently public with no auth — see `helm/backup-ui/CONTEXT.md`. |
+| `velero` | Weekly cloud backup to S3 (`scheduled/` folder; manual ones in `manual/`); PVC data via Kopia fs-backup, databases via pre-backup dump hooks. Values-only, upstream chart. See `helm/velero/CONTEXT.md`. |
+| `backup-local` | Manual-only restic backups of selected PVCs to the munin external drive (the CronJob is suspended and serves as the job template), plus the healthchecks.io backup watchdog (scheduled Velero backups only). Encrypted, and works on the drive's exFAT filesystem. |
+| `backup-ui` | Read-only dashboard over Velero + restic backups and Sealed Secrets key age. Dashboard + manual backup trigger (category checkboxes -> S3 and/or Munin). Chart only; app source/CI are in the separate `homelab-backup-ui` repo (image `ghcr.io/saratangajalaoffl/homelab-backup-ui`). Public, behind Traefik Basic Auth; a separate dispatcher pod (not the web pod) holds the rights to create Backups/Jobs. See `helm/backup-ui/CONTEXT.md`. |
 | `token-auth` | Tiny ForwardAuth service holding a per-host bearer-token map, gating `ollama` and `hermes`'s public API routes. Replaced an in-routing-rule token match that ArgoCD could never render. |
 
 `nginx-proxy-manager` and `watchtower` were retired during the migration with no direct replacement chart: Traefik + cert-manager took over ingress/TLS, and Renovate PRs took over image-update awareness.
