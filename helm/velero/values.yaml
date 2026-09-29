@@ -141,3 +141,26 @@ schedules:
         # drive copy still has the models; the external drive has 1.8T free and
         # no per-GB cost, so there is nothing to gain by excluding them there.
         - homelab-ollama
+        # ARR is deliberately NOT part of the automatic cloud backup: its data is
+        # low-value and re-obtainable. It is backed up on demand to the munin
+        # drive instead (helm/backup-local, manual Job). See docs/adr/0005.
+        - homelab-arr
+        # Velero's own namespace. Its Kopia maintenance Job pods are transient
+        # and carry emptyDir volumes, which defaultVolumesToFsBackup tries to
+        # back up and then fails ("error identifying unique volume path on
+        # host") — turning an otherwise clean run into PartiallyFailed, which
+        # the backup-watchdog does not count as a success. That is what made
+        # the 2026-09-27 run PartiallyFailed and, 8 days later, tripped the
+        # watchdog. Velero's config is rebuilt from git, and the one credential
+        # here is covered by copy_secrets.sh, so nothing is lost.
+        - velero
+      # Kubernetes Secret objects are excluded from the cloud tier on purpose.
+      # The Sealed Secrets controller decrypts every SealedSecret into a plain
+      # Secret, so backing these up would put plaintext credentials in S3 —
+      # defeating the choice to keep the signing key out of the cloud. Secrets
+      # are rebuilt from git (SealedSecrets) plus the vault export made with
+      # scripts/k8s-secrets/copy_secrets.sh. Not covered: credentials stored
+      # inside PVC data (e.g. openclaw-server-auth-secrets) still ride along
+      # with the fs-backup.
+      excludedResources:
+        - secrets

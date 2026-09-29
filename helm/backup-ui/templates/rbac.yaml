@@ -1,0 +1,69 @@
+{{/*
+Least privilege, deliberately read-only, and deliberately NOT a ClusterRole:
+each grant is a namespaced Role in exactly the namespace it reads. There is no
+access to Secrets anywhere — Sealed Secrets key age comes from the controller's
+public certificate over HTTP instead.
+*/}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backup-ui
+  namespace: {{ .Values.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-ui-read
+  namespace: {{ .Values.velero.namespace }}
+rules:
+  - apiGroups: ["velero.io"]
+    resources: ["backups", "schedules", "backupstoragelocations"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-ui-read
+  namespace: {{ .Values.velero.namespace }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: backup-ui-read }
+subjects:
+  - { kind: ServiceAccount, name: backup-ui, namespace: {{ .Values.namespace }} }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-ui-read
+  namespace: {{ .Values.local.namespace }}
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-ui-read
+  namespace: {{ .Values.local.namespace }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: backup-ui-read }
+subjects:
+  - { kind: ServiceAccount, name: backup-ui, namespace: {{ .Values.namespace }} }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-ui-state
+  namespace: {{ .Values.namespace }}
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: [{{ .Values.sealedSecrets.exportConfigMap | quote }}]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-ui-state
+  namespace: {{ .Values.namespace }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: backup-ui-state }
+subjects:
+  - { kind: ServiceAccount, name: backup-ui, namespace: {{ .Values.namespace }} }

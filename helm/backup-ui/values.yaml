@@ -1,0 +1,50 @@
+# Read-only backup dashboard. v1 has NO write path: its RBAC grants get/list
+# only, so a compromised pod can read backup metadata but cannot start a
+# backup, restore, or delete anything. Triggers/restore arrive in a later
+# version with their own, separately reviewed RBAC.
+namespace: homelab-backup-ui
+
+image:
+  repository: ghcr.io/saratangajalaoffl/homelab-backup-ui
+  # Source and CI live in https://github.com/SaratAngajalaoffl/homelab-backup-ui;
+  # a vX.Y.Z tag there publishes :X.Y.Z. Public image, so no pull secret.
+  # Renovate bumps this tag like any other image.
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+port: 8080
+
+# Where the collector looks. Must match helm/velero and helm/backup-local.
+velero:
+  namespace: velero
+local:
+  namespace: homelab-backup-local
+  cronjob: backup-local
+  watchdogCronjob: backup-watchdog
+
+# A weekly run older than this means one was missed (matches
+# helm/backup-local's watchdog.maxAgeHours).
+maxAgeHours:
+  cloud: 192
+  disk: 192
+
+sealedSecrets:
+  # PUBLIC certificate endpoint: its NotBefore is the newest signing key's
+  # creation time. Using it means this app needs no RBAC on Secrets.
+  certUrl: http://sealed-secrets-controller.kube-system.svc:8080/v1/cert.pem
+  # ConfigMap stamped by scripts/k8s-secrets/copy_secrets.sh after each export.
+  exportConfigMap: secrets-export
+
+ingress:
+  enabled: true
+  host: backups.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod
+  # TEMPORARILY PUBLIC with no auth (deliberate, until auth is designed).
+  # The page is read-only backup metadata; target state is netbird-only per
+  # docs/adr/0005-backup-restore.md.
+
+resources:
+  requests: { cpu: 10m, memory: 32Mi }
+  limits: { memory: 128Mi }

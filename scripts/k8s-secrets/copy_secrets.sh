@@ -108,6 +108,16 @@ PY
 
 printf '%s\n' "${OUT}" | copy_to_clipboard
 
+# Record when this export happened so helm/backup-ui can warn if the Sealed
+# Secrets controller has since rotated to a key this export does not contain.
+# Best-effort: a missing namespace (backup-ui not deployed yet) must not fail
+# the export itself.
+kubectl create namespace homelab-backup-ui --dry-run=client -o yaml | kubectl apply -f - >/dev/null 2>&1 || true
+kubectl -n homelab-backup-ui create configmap secrets-export \
+  --from-literal=exportedAt="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --dry-run=client -o yaml | kubectl apply -f - >/dev/null 2>&1 \
+  || echo "warning: could not record export time for backup-ui" >&2
+
 CONTROLLER_COUNT="$(printf '%s' "${OUT}" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["controller_keys"]))')"
 SECRET_COUNT="$(printf '%s' "${OUT}" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["secrets"]))')"
 printf 'Copied %s controller key(s) and %s plaintext secret(s) (base64 values, not yet sealed) to the clipboard.\n' "${CONTROLLER_COUNT}" "${SECRET_COUNT}"

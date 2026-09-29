@@ -1,0 +1,21 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: backup-ui
+  namespace: argocd
+spec:
+  project: homelab
+  source:
+    repoURL: git@github.com:SaratAngajalaoffl/homelab.git
+    targetRevision: main
+    path: helm/backup-ui
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: homelab-backup-ui
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

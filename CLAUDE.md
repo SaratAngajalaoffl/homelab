@@ -80,6 +80,7 @@ kubectl -n homelab-backup-local create job --from=cronjob/backup-local manual-$(
     ├── argocd/             # GitOps delivery layer — app-of-apps, see helm/argocd/CONTEXT.md
     ├── velero/             # Cloud backup to S3 (values-only, upstream chart)
     ├── backup-local/       # Weekly restic backup to the munin drive + backup watchdog
+    ├── backup-ui/          # Read-only backup dashboard chart (code lives in SaratAngajalaoffl/homelab-backup-ui)
     ├── token-auth/         # ForwardAuth bearer-token gate for ollama/hermes public APIs
     ├── cluster-issuers.yaml # cert-manager ClusterIssuers (not chart-packaged, bootstrap-applied)
     ├── headlamp/           # Cluster dashboard UI (upstream chart, values-only, no local Chart.yaml)
@@ -138,6 +139,7 @@ Store exported JSON in a vault (e.g. Bitwarden), not in git.
 | `headlamp` | Cluster dashboard UI, installed from the upstream chart (no local `Chart.yaml`). |
 | `velero` | Weekly cloud backup of all namespaces to S3; PVC data via Kopia fs-backup, databases via pre-backup dump hooks. Values-only, upstream chart. See `helm/velero/CONTEXT.md`. |
 | `backup-local` | Weekly restic backup of every PVC to the munin external drive, plus the healthchecks.io backup watchdog. Encrypted, and works on the drive's exFAT filesystem. |
+| `backup-ui` | Read-only dashboard over Velero + restic backups and Sealed Secrets key age. Chart only; app source/CI are in the separate `homelab-backup-ui` repo (image `ghcr.io/saratangajalaoffl/homelab-backup-ui`). Currently public with no auth — see `helm/backup-ui/CONTEXT.md`. |
 | `token-auth` | Tiny ForwardAuth service holding a per-host bearer-token map, gating `ollama` and `hermes`'s public API routes. Replaced an in-routing-rule token match that ArgoCD could never render. |
 
 `nginx-proxy-manager` and `watchtower` were retired during the migration with no direct replacement chart: Traefik + cert-manager took over ingress/TLS, and Renovate PRs took over image-update awareness.

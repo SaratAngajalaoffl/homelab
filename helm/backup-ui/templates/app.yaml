@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backup-ui
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: backup-ui
+    homelab.smugiwara.com/stack: backup-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backup-ui
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backup-ui
+        homelab.smugiwara.com/stack: backup-ui
+    spec:
+      serviceAccountName: backup-ui
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: backup-ui
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          env:
+            - { name: LISTEN, value: {{ printf ":%v" .Values.port | quote }} }
+            - { name: VELERO_NS, value: {{ .Values.velero.namespace | quote }} }
+            - { name: LOCAL_NS, value: {{ .Values.local.namespace | quote }} }
+            - { name: LOCAL_CRONJOB, value: {{ .Values.local.cronjob | quote }} }
+            - { name: WATCHDOG_CRONJOB, value: {{ .Values.local.watchdogCronjob | quote }} }
+            - { name: SEALED_CERT_URL, value: {{ .Values.sealedSecrets.certUrl | quote }} }
+            - { name: STATE_NS, value: {{ .Values.namespace | quote }} }
+            - { name: STATE_CONFIGMAP, value: {{ .Values.sealedSecrets.exportConfigMap | quote }} }
+            - { name: CLOUD_MAX_AGE_HOURS, value: {{ .Values.maxAgeHours.cloud | quote }} }
+            - { name: DISK_MAX_AGE_HOURS, value: {{ .Values.maxAgeHours.disk | quote }} }
+          ports:
+            - { name: http, containerPort: {{ .Values.port }} }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+          resources: {{ toYaml .Values.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backup-ui
+  namespace: {{ .Values.namespace }}
+  labels:
+    homelab.smugiwara.com/stack: backup-ui
+spec:
+  selector:
+    app.kubernetes.io/name: backup-ui
+  ports:
+    - { name: http, port: {{ .Values.port }}, targetPort: http }

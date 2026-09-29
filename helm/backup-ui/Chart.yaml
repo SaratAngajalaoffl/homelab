@@ -1,0 +1,6 @@
+apiVersion: v2
+name: backup-ui
+description: "Read-only dashboard over the Velero (cloud) and restic (munin disk) backups, plus Sealed Secrets key age. Source at github.com/SaratAngajalaoffl/homelab-backup-ui"
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
