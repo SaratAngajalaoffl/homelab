@@ -9,7 +9,7 @@ Expected shape of "values":
   args: [] (optional)
   env: {} (optional, plain key/value env vars)
   envSecretName: "" (optional, Secret providing additional env vars via envFrom)
-  persistence: [] (optional, list of { name, mountPath, size, storageClassName, accessMode (default ReadWriteOnce) } -> one PVC + volume per entry, PVC name is "<fullname>-<name>")
+  persistence: [] (optional, list of { name, mountPath, size, storageClassName, accessMode (default ReadWriteOnce), existingClaim } -> one PVC + volume per entry, PVC name is "<fullname>-<name>"; with existingClaim set, no PVC is rendered and the volume mounts that claim instead — used to adopt a volume made by a restore)
   resources: {} (optional)
   securityContext: {} (optional, pod-level)
   extraVolumes: [] (optional, raw k8s volume entries, e.g. emptyDir for /dev/shm)
@@ -117,7 +117,7 @@ spec:
         {{- range $v.persistence }}
         - name: {{ .name }}
           persistentVolumeClaim:
-            claimName: {{ printf "%s-%s" $fullname .name }}
+            claimName: {{ .existingClaim | default (printf "%s-%s" $fullname .name) }}
         {{- end }}
         {{- with $v.extraVolumes }}
         {{- toYaml . | nindent 8 }}

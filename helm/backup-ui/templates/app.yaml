@@ -14,6 +14,12 @@
 - { name: MANUAL_LOCATION, value: {{ .Values.manual.cloudLocation | quote }} }
 - { name: MANUAL_TTL, value: {{ .Values.manual.ttl | quote }} }
 - { name: CATEGORIES_FILE, value: /etc/backup-ui/categories.json }
+- { name: DISKS_FILE, value: /etc/backup-ui/disks.json }
+- { name: ARGOCD_NS, value: {{ .Values.restore.argocdNamespace | quote }} }
+- { name: RESTORE_HELPER_IMAGE, value: {{ .Values.restore.helperImage | quote }} }
+- { name: RESTORE_KOPIA_IMAGE, value: {{ .Values.restore.kopiaImage | quote }} }
+- { name: RESTORE_CRED_SECRET, value: {{ .Values.restore.credentialSecret | quote }} }
+- { name: RESTORE_REPO_SECRET, value: {{ .Values.restore.repoPasswordSecret | quote }} }
 {{- end }}
 {{- define "backup-ui.podspec" -}}
 serviceAccountName: {{ .sa }}
@@ -47,7 +53,7 @@ spec:
         app.kubernetes.io/name: backup-ui
         homelab.smugiwara.com/stack: backup-ui
       annotations:
-        checksum/categories: {{ .Values.categories | toJson | sha256sum }}
+        checksum/categories: {{ dict "c" .Values.categories "d" .Values.restore | toJson | sha256sum }}
     spec:
       {{- include "backup-ui.podspec" (dict "root" . "sa" "backup-ui") | nindent 6 }}
       containers:
@@ -92,7 +98,7 @@ spec:
         app.kubernetes.io/name: backup-ui-dispatcher
         homelab.smugiwara.com/stack: backup-ui
       annotations:
-        checksum/categories: {{ .Values.categories | toJson | sha256sum }}
+        checksum/categories: {{ dict "c" .Values.categories "d" .Values.restore | toJson | sha256sum }}
     spec:
       {{- include "backup-ui.podspec" (dict "root" . "sa" "backup-ui-dispatcher") | nindent 6 }}
       containers:

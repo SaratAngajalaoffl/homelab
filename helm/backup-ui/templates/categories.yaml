@@ -8,3 +8,5 @@ metadata:
 data:
   categories.json: |
     {{- .Values.categories | toJson | nindent 4 }}
+  disks.json: |
+    {{- (.Values.restore.disks | default list) | toJson | nindent 4 }}

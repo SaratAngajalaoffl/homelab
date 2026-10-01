@@ -20,9 +20,19 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
+  # backups.smugiwara.com pauses a child Application's auto-sync while a volume
+  # restore is live (otherwise selfHeal reverts the repoint). Without this,
+  # selfHeal on THIS app would put the child's auto-sync straight back. Re-apply
+  # this file by hand after changing it (see the header).
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Application
+      jsonPointers:
+        - /spec/syncPolicy/automated
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true

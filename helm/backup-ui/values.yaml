@@ -4,7 +4,7 @@
 #   dispatcher  no ingress. Re-validates requests against `categories` below and
 #               is the only thing allowed to create Velero Backups and restic Jobs.
 # So a compromised web pod cannot craft a Backup with exec hooks or a Job that
-# mounts host paths. Restore is not implemented yet.
+# mounts host paths. It also drives volume restores (see `restore` below).
 namespace: homelab-backup-ui
 
 image:
@@ -12,7 +12,7 @@ image:
   # Source and CI live in https://github.com/SaratAngajalaoffl/homelab-backup-ui;
   # a vX.Y.Z tag there publishes :X.Y.Z. Public image, so no pull secret.
   # Renovate bumps this tag like any other image.
-  tag: "0.2.1"
+  tag: "0.3.0"
   pullPolicy: IfNotPresent
 imagePullSecrets: []
 
@@ -79,6 +79,40 @@ categories:
     default: false
     namespaces:
       - homelab-ollama
+
+# Restoring a volume from a backup: the operator picks a backup, a PVC and a
+# disk; the dispatcher creates a NEW PVC on that disk's StorageClass, fills it,
+# repoints the Deployment(s) at it and leaves the old PVC labelled orphaned
+# (deletable, or switchable back, from the UI). Leave `disks` empty to turn the
+# whole feature off (no restore UI, no extra RBAC).
+restore:
+  # One entry per place a restored volume may live. storageClass must exist;
+  # hostRoot is the directory it provisions under, and the dispatcher refuses to
+  # mount any PV path outside it (the restore Job mounts that path as root).
+  disks:
+    - id: os
+      name: "OS disk (NVMe)"
+      storageClass: local-path
+      hostRoot: /var/lib/rancher/k3s/storage
+    # The 932G data disk needs its own StorageClass first (local-path serves one
+    # root). Once one exists, add it here, e.g.:
+    # - id: data
+    #   name: "Data disk (~/storage)"
+    #   storageClass: local-data
+    #   hostRoot: /home/mugiwara/storage/k8s
+  # ArgoCD's selfHeal would revert the repoint, so auto-sync is paused on the
+  # Application(s) deploying into the namespace until the restore is finalized.
+  argocdNamespace: argocd
+  # Throwaway pod that claims the new PVC so local-path provisions it.
+  helperImage: busybox:1.37
+  # Restores Velero fs-backups (Kopia) straight into the new volume. Keep it
+  # compatible with the Kopia version inside Velero's node-agent.
+  kopiaImage: kopia/kopia:latest
+  # Secrets in the velero namespace: the BSL's AWS credential (key `cloud`) and
+  # Velero's Kopia repository password (key `repository-password`; absent means
+  # Velero's static default).
+  credentialSecret: velero-cloud-credentials
+  repoPasswordSecret: velero-repo-credentials
 
 sealedSecrets:
   # PUBLIC certificate endpoint: its NotBefore is the newest signing key's

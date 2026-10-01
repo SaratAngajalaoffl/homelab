@@ -1,5 +1,7 @@
 {{/*
 One PersistentVolumeClaim per persistence entry, named "<fullname>-<entry.name>".
+An entry with `existingClaim` set renders no PVC: the Deployment mounts that claim instead
+(see _deployment.tpl). This is how git adopts a volume created by a backups.smugiwara.com restore.
 Usage: {{ include "homelab-common.pvcs" (dict "root" $ "name" "atuin-server" "persistence" .Values.server.persistence) }}
 */}}
 {{- define "homelab-common.pvcs" -}}
@@ -7,6 +9,7 @@ Usage: {{ include "homelab-common.pvcs" (dict "root" $ "name" "atuin-server" "pe
 {{- $name := .name -}}
 {{- $fullname := include "homelab-common.fullname" (dict "root" $root "name" $name) -}}
 {{- range .persistence }}
+{{- if not .existingClaim }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -24,5 +27,6 @@ spec:
   resources:
     requests:
       storage: {{ .size }}
+{{- end }}
 {{- end -}}
 {{- end -}}

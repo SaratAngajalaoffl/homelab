@@ -135,3 +135,130 @@ metadata:
 roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: backup-ui-dispatcher }
 subjects:
   - { kind: ServiceAccount, name: backup-ui-dispatcher, namespace: {{ .Values.namespace }} }
+{{- if .Values.restore.disks }}
+{{- /*
+Restore. Like backups, the web pod gets read-only access (it only lists PVCs for
+the picker) and the dispatcher gets every write. Grants are per category
+namespace, not cluster-wide. Note what the dispatcher can now do: patch
+Deployments/StatefulSets and create Jobs in those namespaces, and create Jobs that
+mount a PV's host path as root. That is the same class of power it already had
+via backup-local Jobs, and it stays out of the internet-facing pod.
+*/ -}}
+{{- $nss := list }}
+{{- range .Values.categories }}{{- range .namespaces }}{{- $nss = append $nss . }}{{- end }}{{- end }}
+{{- range $ns := $nss | uniq | sortAlpha }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-ui-restore-read
+  namespace: {{ $ns }}
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-ui-restore-read
+  namespace: {{ $ns }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: backup-ui-restore-read }
+subjects:
+  - { kind: ServiceAccount, name: backup-ui, namespace: {{ $.Values.namespace }} }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-ui-restore
+  namespace: {{ $ns }}
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "create", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["get", "list", "patch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-ui-restore
+  namespace: {{ $ns }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: backup-ui-restore }
+subjects:
+  - { kind: ServiceAccount, name: backup-ui-dispatcher, namespace: {{ $.Values.namespace }} }
+{{- end }}
+---
+# Cluster-scoped reads the dispatcher needs: does the disk's StorageClass exist,
+# and where did the new PV land.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: backup-ui-dispatcher-restore
+rules:
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: backup-ui-dispatcher-restore
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: backup-ui-dispatcher-restore }
+subjects:
+  - { kind: ServiceAccount, name: backup-ui-dispatcher, namespace: {{ .Values.namespace }} }
+---
+# Pause / resume auto-sync on the Application that owns a restored volume.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-ui-dispatcher-restore
+  namespace: {{ .Values.restore.argocdNamespace }}
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications"]
+    verbs: ["get", "list", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-ui-dispatcher-restore
+  namespace: {{ .Values.restore.argocdNamespace }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: backup-ui-dispatcher-restore }
+subjects:
+  - { kind: ServiceAccount, name: backup-ui-dispatcher, namespace: {{ .Values.namespace }} }
+---
+# Velero side: find the snapshot for a volume and the BSL it lives in, then run
+# the Kopia restore Job (which mounts the BSL credential from this namespace).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-ui-dispatcher-restore
+  namespace: {{ .Values.velero.namespace }}
+rules:
+  - apiGroups: ["velero.io"]
+    resources: ["podvolumebackups", "backupstoragelocations"]
+    verbs: ["get", "list"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-ui-dispatcher-restore
+  namespace: {{ .Values.velero.namespace }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: backup-ui-dispatcher-restore }
+subjects:
+  - { kind: ServiceAccount, name: backup-ui-dispatcher, namespace: {{ .Values.namespace }} }
+{{- end }}

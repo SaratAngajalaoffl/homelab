@@ -24,6 +24,24 @@ namespace, so "databases" can't be split from the app. **A namespace in no
 category can't be backed up manually** — add new stacks to `categories`.
 The Munin drive must be plugged in; otherwise the Job fails ("not a mount point").
 
+## How a volume restore happens
+Enabled when `restore.disks` in values.yaml is non-empty.
+1. Pick an active backup (S3 or Munin), one of its volumes (PVC) and a disk.
+   The web pod writes a restore ConfigMap `rst-...`.
+2. The dispatcher validates it again, creates a NEW PVC on the disk's StorageClass
+   (a throwaway `bind-` Job claims it so local-path provisions it), then runs a
+   `restore-` Job into the new PV's host directory: restic (clone of the
+   `backup-local` template, snapshot tagged `job-<run>`) or Kopia (Velero fs-backup
+   snapshot from the BSL bucket).
+3. Cutover: ArgoCD auto-sync on the owning Application is paused, the Deployment(s)
+   are repointed, the old PVC is labelled `restore-state=orphaned`.
+4. In the UI: **Roll back / Switch** (repoint the other way), **Delete** the orphan
+   (finalize). If the app is on the new PVC, then put its name in the chart
+   (`persistence[].existingClaim`), push, and press **Resume ArgoCD sync**.
+`kubectl get pvc -A -l homelab.smugiwara.com/restore-state` lists active/orphaned
+volumes. StatefulSet data volumes (databases) are refused: restore those from their
+dump PVC. Details: docs/adr/0005-backup-restore.md.
+
 ## Access: public, Basic Auth
 `backups.smugiwara.com` sits behind Traefik `basicAuth` (Secret
 `backup-ui-basic-auth`, a SealedSecret in `templates/sealed-basic-auth.yaml`).

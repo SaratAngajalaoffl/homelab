@@ -297,5 +297,42 @@ endpoint.
   `automatic/k3s_backups/`, and the restic repo on Munin) were deleted on this
   date to start clean under the new layout.
 - **Known limitations.** Categories are namespace groups (no per-PVC selection).
-  The disk list is built from Job history, not the restic repo. Restore is not
-  implemented in the UI.
+  The disk list is built from Job history, not the restic repo.
+
+## 2026-10-01 — Volume restore from the UI
+
+backups.smugiwara.com can now restore **one PVC** from an active backup (S3 or Munin)
+onto a chosen disk, without touching the rest of the namespace.
+
+- **Flow.** Pick backup → volume → disk. The dispatcher creates a *new* PVC on that
+  disk's StorageClass, fills it, repoints the Deployment(s) mounting the old PVC, and
+  labels the old one `homelab.smugiwara.com/restore-state=orphaned`. The operator
+  verifies, then **deletes the orphan** or **rolls back** (a symmetric switch — a
+  rollback can itself be undone until the orphan is deleted).
+- **Why a new PVC rather than restoring in place.** The old data is never overwritten,
+  so a bad restore is one click from undone.
+- **Data path.** restic: a clone of the `backup-local` Job template, restoring the
+  snapshot tagged `job-<run name>` (the backup Job now adds that tag). Velero: a Kopia
+  Job restoring the PodVolumeBackup's snapshot straight from the BSL bucket — Velero
+  itself cannot restore a single PVC under a new name (fs-backup restores go through
+  restored pods). Both write to the new PV's host directory, because the Munin
+  drive/restic password/bucket credential live in other namespaces than the app and a
+  pod can only mount PVCs from its own. The path must sit under the chosen disk's
+  `hostRoot`.
+- **ArgoCD.** `selfHeal` would revert the repoint, so the dispatcher removes auto-sync
+  from the owning Application while a restore is live (`root-app.yaml` ignores that
+  field, otherwise root's own selfHeal would put it back). After the orphan is deleted,
+  set the persistence entry's `existingClaim` to the restored PVC in git, push, then
+  press *Resume ArgoCD sync*. A rollback + delete resumes sync automatically, since git
+  already names the original claim.
+- **Retention change.** `backup-local` now prunes with `--group-by host,paths` instead
+  of `tags`: every snapshot carries a unique `job-<name>` tag, so tag grouping would
+  have made each its own group and pruned nothing.
+- **Limits.** StatefulSet `volumeClaimTemplates` PVCs (every Postgres/Mongo data dir)
+  cannot be repointed and are refused — restore those from their dump PVC, which is a
+  plain PVC and does work. Pods not owned by a Deployment/StatefulSet that mount the
+  volume are refused. A second disk needs its own StorageClass first.
+- **Blast radius.** The dispatcher gains patch on Deployments/StatefulSets, create on
+  Jobs and PVC create/delete in the category namespaces, plus Application patch in
+  `argocd`. All stay in the dispatcher; the web pod only lists PVCs and writes
+  request ConfigMaps.

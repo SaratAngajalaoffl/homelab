@@ -57,6 +57,12 @@ spec:
                 # re-read pack metadata from the drive every time.
                 - name: RESTIC_CACHE_DIR
                   value: {{ printf "/drive/%s-cache" .Values.resticRepoSubpath | quote }}
+                # Each snapshot is tagged job-<this Job's name> so that
+                # backups.smugiwara.com can restore "the run called X" exactly.
+                - name: JOB_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.labels['job-name']
               envFrom:
                 - secretRef:
                     name: {{ .Values.envSecretName }}
@@ -110,15 +116,19 @@ spec:
 
                   restic backup "$@" \
                     --tag "${TAGS}" \
+                    --tag "job-${JOB_NAME}" \
                     --host loki \
                     --exclude-caches \
                     --one-file-system
 
-                  # Group by tag set so each category combination keeps its own
-                  # last N, instead of a large backup evicting a small one.
-                  echo "Pruning old snapshots (keeping last {{ .Values.retention.keepLast }} per tag set) ..."
+                  # Group by the paths backed up (i.e. the category/namespace
+                  # combination) so each keeps its own last N, instead of a large
+                  # backup evicting a small one. Not by tags: every snapshot
+                  # carries a unique job-<name> tag, which would make each its own
+                  # group and nothing would ever be pruned.
+                  echo "Pruning old snapshots (keeping last {{ .Values.retention.keepLast }} per set of paths) ..."
                   restic forget \
-                    --group-by tags \
+                    --group-by host,paths \
                     --keep-last {{ .Values.retention.keepLast }} \
                     --prune
 
