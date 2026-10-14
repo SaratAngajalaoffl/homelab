@@ -3,7 +3,7 @@ namespace: homelab-ollama
 server:
   image:
     repository: ollama/ollama
-    tag: "latest@sha256:adca95a12c2b386a8f9a995e7fa0600e187e3323b5e5522f5a6c3b1ec73eff99"
+    tag: "latest@sha256:926d40fd6eeeebd346b5c358a63de2a10ec995371cd93dd22f1843200694b1a6"
   port: 11434
   env:
     OLLAMA_HOST: "0.0.0.0:11434"
