@@ -3,7 +3,7 @@ namespace: homelab-nextcloud
 server:
   image:
     repository: nextcloud
-    tag: "latest@sha256:ee0759d369c9d3ecefb5255b0150dd5695abef7bbd13703a3588fabe78012d8a"
+    tag: "latest@sha256:a588aa5353703b44106a6129adaaf7bf22521b7a4754f9f529b3228d6aa390c5"
   port: 80
   # Official image runs as www-data (uid 33); fsGroup matches host bind-mount
   # ownership (also uid 33 / gid 33) so PVC data is group-writable the same way.
