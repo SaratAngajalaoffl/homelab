@@ -3,7 +3,7 @@ namespace: homelab-netbird
 server:
   image:
     repository: netbirdio/netbird-server
-    tag: "latest@sha256:e37e8ca1a6a18b979be0f987299969b402782579806cdeda5b8cda61098a073f"
+    tag: "latest@sha256:7caa37d30b20e54196e1076d4009fcdc4c9d83d174d8b9a8be52fb29c00708df"
   port: 80
   args: ["--config", "/etc/netbird/config.yaml"]
   # hostPort 3478 can't support a RollingUpdate surge on a single node: the
