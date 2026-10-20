@@ -2,6 +2,16 @@
 
 Self-hosted services running on a single-node k3s cluster. Helm charts and ArgoCD app-of-apps manifests live in this repo; runtime data and secrets stay on the host / in-cluster.
 
+## Screenshots
+
+**ArgoCD** — every stack is a child Application of the `root` app-of-apps, deployed by `git push` to `main`:
+
+![ArgoCD applications view](docs/screenshots/argocd-applications.png)
+
+**Headlamp** — cluster map grouped by namespace, one `homelab-<stack>` namespace per chart:
+
+![Headlamp cluster map](docs/screenshots/headlamp-map.png)
+
 ## Prerequisites
 
 - A k3s cluster (kubeconfig at `~/.kube/k3s-homelab.yaml`, kept separate from `~/.kube/config`)
