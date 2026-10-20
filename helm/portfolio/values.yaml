@@ -1,0 +1,40 @@
+namespace: homelab-portfolio
+
+web:
+  # Built and pushed by github.com/SaratAngajalaoffl/portfolio-27's own
+  # .github/workflows/docker.yml on every push to its main branch. Public
+  # package, so no imagePullSecret (unlike jeeva's ghcr-jeeva). The site is a
+  # fully static export, so there is no state, no PVC and nothing to back up.
+  image:
+    repository: ghcr.io/saratangajalaoffl/portfolio-27
+    # Digest-pinned so a new push to portfolio-27 main shows up as a Renovate
+    # digest PR (auto-merged) instead of never rolling under IfNotPresent.
+    tag: "latest@sha256:78079809c8ca04b9299f6f0a136785c00932fbf9192c49e8a70fc6dcb2eddebe"
+  # nginx-unprivileged listens on 8080.
+  port: 8080
+  securityContext:
+    runAsNonRoot: true
+  resources:
+    requests:
+      cpu: 10m
+      memory: 16Mi
+    limits:
+      memory: 64Mi
+
+# Public by design — this is the one stack meant for anonymous visitors. The
+# rate limit is generous and only there to blunt scraping/abuse, not to gate.
+# Per source IP; one page load pulls a few dozen hashed assets, hence 1s
+# rather than the admin UIs' 1m window.
+rateLimit:
+  average: 20
+  burst: 100
+  period: 1s
+
+ingress:
+  host: smugiwara.com
+  # Served on the same Ingress (and certificate) and 301'd to the apex by the
+  # redirect middleware in templates/web.yaml.
+  redirectHosts:
+    - www.smugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod

@@ -1,0 +1,58 @@
+{{- $fullname := include "homelab-common.fullname" (dict "root" $ "name" "web") -}}
+{{/*
+Hand-rolled instead of homelab-common.ingress: that helper is single-host, and
+this one needs the apex plus www on one certificate, with www redirected.
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "homelab-common.labels" (dict "root" $ "name" "web") | nindent 4 }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer }}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.namespace }}-ratelimit@kubernetescrd,{{ .Values.namespace }}-redirect-apex@kubernetescrd
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.host }}
+        {{- range .Values.ingress.redirectHosts }}
+        - {{ . }}
+        {{- end }}
+      secretName: {{ $fullname }}-tls
+  rules:
+    {{- range prepend .Values.ingress.redirectHosts .Values.ingress.host }}
+    - host: {{ . }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullname }}
+                port:
+                  number: {{ $.Values.web.port }}
+    {{- end }}
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-apex
+  namespace: {{ .Values.namespace }}
+  labels:
+    homelab.smugiwara.com/stack: {{ .Chart.Name }}
+spec:
+  redirectRegex:
+    # Only matches the redirect hosts; requests to the apex pass through.
+    regex: ^https?://(?:{{ join "|" .Values.ingress.redirectHosts | replace "." "\\." }})/(.*)
+    replacement: https://{{ .Values.ingress.host }}/${1}
+    permanent: true
+---
+{{/* Public-exposure mitigation — see homelab-common/templates/_middleware.tpl. */}}
+{{ include "homelab-common.rateLimit" (dict "root" $ "rateLimit" .Values.rateLimit) }}
+---
+{{ include "homelab-common.deployment" (dict "root" $ "name" "web" "values" .Values.web) }}
+---
+{{ include "homelab-common.service" (dict "root" $ "name" "web" "port" .Values.web.port) }}

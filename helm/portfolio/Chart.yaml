@@ -1,0 +1,10 @@
+apiVersion: v2
+name: portfolio
+description: Personal portfolio site served at the smugiwara.com apex (static Next.js export on nginx)
+type: application
+version: 0.1.0
+appVersion: "latest"
+dependencies:
+  - name: homelab-common
+    version: "0.1.0"
+    repository: "file://../homelab-common"
