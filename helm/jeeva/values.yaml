@@ -133,6 +133,9 @@ api:
     # (MIN_SAMPLING_FREQUENCY_SECONDS, defaults to 1s in
     # api/src/perps/frequency.ts). jeeva-public overrides this to 60s —
     # see values-public.yaml.
+    # Internal instance is live trading, not a demo. jeeva-public overrides
+    # this to "true" (see values-public.yaml).
+    DEMO_MODE: "false"
   # Secret must provide AUTH_USERNAME / AUTH_PASSWORD / JWT_SECRET /
   # DATABASE_URL (a full postgres:// URI pointed at jeeva-timescaledb, using
   # the same credentials as jeeva-db-secrets — k8s env var expansion can't

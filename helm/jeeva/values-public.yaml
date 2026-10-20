@@ -25,6 +25,9 @@ api:
     # behalf. api/src/perps/frequency.ts rejects any sampling config below
     # this.
     MIN_SAMPLING_FREQUENCY_SECONDS: "60"
+    # Public instance runs in demo mode on the api side too, matching
+    # frontend.env.DEMO_MODE below.
+    DEMO_MODE: "true"
 
 engine:
   env:
