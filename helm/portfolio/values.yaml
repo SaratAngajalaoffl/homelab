@@ -9,7 +9,7 @@ web:
     repository: ghcr.io/saratangajalaoffl/portfolio-27
     # Digest-pinned so a new push to portfolio-27 main shows up as a Renovate
     # digest PR (auto-merged) instead of never rolling under IfNotPresent.
-    tag: "latest@sha256:78079809c8ca04b9299f6f0a136785c00932fbf9192c49e8a70fc6dcb2eddebe"
+    tag: "latest@sha256:4573c614a2c591c7f4645eca6cbfe0cef15ea9563b01ef7339055b7df1f0561b"
   # nginx-unprivileged listens on 8080.
   port: 8080
   securityContext:
