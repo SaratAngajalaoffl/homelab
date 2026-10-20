@@ -18,7 +18,15 @@ namespace: homelab-jeeva
 mongo:
   image:
     repository: mongo
-    # On mongo 8 as of 2026-09-21, deliberately. Two prior Renovate 7->8
+    # On mongo 9 as of 2026-10-20 (PR #122), upgraded in place from 8.3.13:
+    # 9.0 accepts 8.3 data only while featureCompatibilityVersion is 8.3,
+    # which it was. FCV is deliberately LEFT at 8.3 after the upgrade (burn-in,
+    # keeps a binary downgrade to 8.3 possible). Before the next major (10.x)
+    # bump, raise it on jeeva-mongo-0:
+    #   db.adminCommand({setFeatureCompatibilityVersion: "9.0", confirm: true})
+    # or 10.x will refuse to start exactly as described below.
+    #
+    # History — mongo 8 as of 2026-09-21. Two prior Renovate 7->8
     # major bumps (PR #90, reverted in 16de7c1; PR #91) broke jeeva-internal
     # because mongo 8 refuses to start against the existing
     # featureCompatibilityVersion 7.0 data ("Wrong mongod version", exit
