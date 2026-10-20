@@ -1,0 +1,23 @@
+# Lets backups.smugiwara.com's dispatcher pause / resume auto-sync on the
+# Application that owns a volume being restored (see helm/backup-ui and
+# root-app.yaml's ignoreDifferences). Lives here, synced by the root app
+# (project "default"), because the "homelab" AppProject backup-ui deploys under
+# is deliberately not allowed to target the argocd namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-ui-dispatcher-restore
+  namespace: argocd
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications"]
+    verbs: ["get", "list", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-ui-dispatcher-restore
+  namespace: argocd
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: backup-ui-dispatcher-restore }
+subjects:
+  - { kind: ServiceAccount, name: backup-ui-dispatcher, namespace: homelab-backup-ui }

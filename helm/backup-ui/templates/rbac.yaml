@@ -218,25 +218,11 @@ roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: backup-
 subjects:
   - { kind: ServiceAccount, name: backup-ui-dispatcher, namespace: {{ .Values.namespace }} }
 ---
-# Pause / resume auto-sync on the Application that owns a restored volume.
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: backup-ui-dispatcher-restore
-  namespace: {{ .Values.restore.argocdNamespace }}
-rules:
-  - apiGroups: ["argoproj.io"]
-    resources: ["applications"]
-    verbs: ["get", "list", "patch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: backup-ui-dispatcher-restore
-  namespace: {{ .Values.restore.argocdNamespace }}
-roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: backup-ui-dispatcher-restore }
-subjects:
-  - { kind: ServiceAccount, name: backup-ui-dispatcher, namespace: {{ .Values.namespace }} }
+# Pausing / resuming auto-sync on the Application that owns a restored volume
+# needs a Role in the argocd namespace. That lives in
+# helm/argocd/apps/backup-ui-argocd-rbac.yaml (synced by the root app) rather
+# than here: the "homelab" AppProject this chart deploys under deliberately
+# can't target argocd, or any stack could rewrite Applications / the project.
 ---
 # Velero side: find the snapshot for a volume and the BSL it lives in, then run
 # the Kopia restore Job (which mounts the BSL credential from this namespace).
