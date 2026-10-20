@@ -12,7 +12,7 @@ image:
   # Source and CI live in https://github.com/SaratAngajalaoffl/homelab-backup-ui;
   # a vX.Y.Z tag there publishes :X.Y.Z. Public image, so no pull secret.
   # Renovate bumps this tag like any other image.
-  tag: "0.3.0"
+  tag: "0.3.0@sha256:e1e3b760bba0873ec15111f9bc422d2983c570750302ebd75f0f4c5c37182e76"
   pullPolicy: IfNotPresent
 imagePullSecrets: []
 
@@ -107,7 +107,7 @@ restore:
   helperImage: busybox:1.38@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
   # Restores Velero fs-backups (Kopia) straight into the new volume. Keep it
   # compatible with the Kopia version inside Velero's node-agent.
-  kopiaImage: kopia/kopia:latest
+  kopiaImage: kopia/kopia:latest@sha256:89fd95ee2942880ca00eae964266958a394421ddbdf69bca62e38afc55f5900e
   # Secrets in the velero namespace: the BSL's AWS credential (key `cloud`) and
   # Velero's Kopia repository password (key `repository-password`; absent means
   # Velero's static default).
