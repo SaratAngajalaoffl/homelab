@@ -1,0 +1,29 @@
+# Split-horizon DNS for smugiwara.com inside the cluster. Bootstrap-applied
+# (`khl apply -f helm/coredns-custom.yaml`), not ArgoCD-managed — same as
+# cluster-issuers.yaml; k3s's CoreDNS imports *.server keys from this
+# ConfigMap.
+#
+# WHY: the home router rejects hairpin traffic (LAN -> its own public IP) with
+# "403 Rejected request from RFC1918 IP to public server address". Every
+# *.smugiwara.com name resolves publicly to that IP, so any pod calling one —
+# including cert-manager's HTTP-01 self-check, which every Let's Encrypt
+# issuance and renewal must pass before it asks LE to validate — got the
+# router's 403. Answering A queries with the node's LAN address sends that
+# traffic straight to Traefik's LoadBalancer (klipper svclb on the node)
+# instead. No AAAA records exist publicly, so only A is overridden; every
+# other record type is forwarded upstream unchanged.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  smugiwara.server: |
+    smugiwara.com:53 {
+        errors
+        cache 30
+        template IN A smugiwara.com {
+            answer "{{ .Name }} 60 IN A 192.168.68.105"
+        }
+        forward . /etc/resolv.conf
+    }

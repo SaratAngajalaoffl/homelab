@@ -85,6 +85,7 @@ kubectl -n homelab-backup-local create job --from=cronjob/backup-local manual-$(
     ├── backup-ui/          # Read-only backup dashboard chart (code lives in SaratAngajalaoffl/homelab-backup-ui)
     ├── token-auth/         # ForwardAuth bearer-token gate for ollama/hermes public APIs
     ├── cluster-issuers.yaml # cert-manager ClusterIssuers (not chart-packaged, bootstrap-applied)
+    ├── coredns-custom.yaml # In-cluster split-horizon DNS for *.smugiwara.com (router blocks hairpin); bootstrap-applied
     ├── headlamp/           # Cluster dashboard UI (upstream chart, values-only, no local Chart.yaml)
     ├── arr/                # Has CONTEXT.md-equivalent knowledge inline in values.yaml comments
     ├── atuin/
