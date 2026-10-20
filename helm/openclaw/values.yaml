@@ -3,6 +3,12 @@ namespace: homelab-openclaw
 server:
   image:
     repository: ghcr.io/openclaw/openclaw
+    # Digest bumps are NOT auto-merged (renovate.json): some releases change
+    # the agent/state SQLite schema and the gateway exits 78 ("run openclaw
+    # doctor --fix") until migrated. To migrate: pause the Application's
+    # auto-sync, scale to 0, run `node dist/index.js doctor --fix
+    # --non-interactive` in a one-off Job on the new image with the same three
+    # PVCs and env, then re-enable auto-sync.
     tag: "latest@sha256:f40d1e66fd14d8c5b49c832f4100f83b53fdc01f5108f7db11de38fd0ee6dbe5"
   port: 18789
   args: ["dist/index.js", "gateway", "--bind", "lan", "--port", "18789"]

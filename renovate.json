@@ -36,6 +36,11 @@
       "minimumReleaseAge": "3 days"
     },
     {
+      "description": "OpenClaw tracks latest, so every upstream release (breaking ones included) arrives as a 'digest' bump. #182 auto-merged one whose agent-DB schema change needed a manual `openclaw doctor --fix` and left the gateway crash-looping for a day. Review these by hand.",
+      "matchPackageNames": ["ghcr.io/openclaw/openclaw"],
+      "automerge": false
+    },
+    {
       "description": "Databases: slow-roll major/minor bumps, never auto-merge.",
       "matchPackageNames": [
         "postgres",
