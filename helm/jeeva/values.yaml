@@ -72,7 +72,7 @@ mongo:
 timescaledb:
   image:
     repository: timescale/timescaledb
-    tag: "latest-pg16@sha256:6f139d56042989bd35f50ba5986e492cd32e35cc6778c50be2659add298dc09f"
+    tag: "latest-pg16@sha256:322ae364eca3321cf2a48f1ef31213b87843413b3cf8feeebf54e999a26bb731"
   port: 5432
   # Secret must provide POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB.
   envSecretName: jeeva-db-secrets
