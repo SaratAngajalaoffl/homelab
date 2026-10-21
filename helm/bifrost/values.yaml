@@ -3,7 +3,7 @@ namespace: homelab-bifrost
 server:
   image:
     repository: maximhq/bifrost
-    tag: "latest@sha256:fe323e244998e1a40b87be87f60d023746eae40dd69baae8f7f42728a5e16149"
+    tag: "latest@sha256:f5b18826349fe9e1c402c10d19f1cbb5567a3c800ad928580d07f72e69106ec7"
   port: 8080
   env:
     APP_PORT: "8080"
