@@ -96,7 +96,7 @@ pod:
       storageClassName: local-path
 
   homarr:
-    image: ghcr.io/homarr-labs/homarr:latest@sha256:9010cf72c18ab96bf7eacbf0018862f84a4e6a8fdef840fd867166de571c264d
+    image: ghcr.io/homarr-labs/homarr:latest@sha256:21f5ef759181f74c6ad2bd3dbf2d0eb3b8a502ba04980703a2a82945447f58f5
     env:
       TZ: "Asia/Kolkata"
       PUID: "1000"
