@@ -34,7 +34,7 @@ pod:
       storageClassName: local-path
 
   qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:latest@sha256:e887804fa9de4c60f5f0fb1f3a7e4febe40a8f69fe736f70c4e8589b1f868dab
+    image: lscr.io/linuxserver/qbittorrent:latest@sha256:75ecbb1c89ab7b0a21c4bde40b4820e4f1649d2d56d83b91913422155e8d2a5f
     env:
       PUID: "1000"
       PGID: "1000"
@@ -96,7 +96,7 @@ pod:
       storageClassName: local-path
 
   homarr:
-    image: ghcr.io/homarr-labs/homarr:latest@sha256:9e866425f4e2bcd03b662f7a7a04b6c180f1de95a3812868fd0a306df026e08c
+    image: ghcr.io/homarr-labs/homarr:latest@sha256:9421086c541f0e83057eaac7b6181c6d3044835227017bea9fc4d0fffee49aa6
     env:
       TZ: "Asia/Kolkata"
       PUID: "1000"
