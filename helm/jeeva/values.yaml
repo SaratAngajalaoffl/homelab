@@ -40,7 +40,7 @@ mongo:
     # is untouched — mongo itself never ran with --auth, so there was
     # nothing in Mongo to preserve besides the trading data, which was
     # explicitly OK to drop for this migration.
-    tag: "9@sha256:741da947cd8d22a4f564ece5e03c8fd93394c16ae469253b12472fe1a81412fa"
+    tag: "9@sha256:452bdaf2127b8ff851e31410a267809b9829eded219979f2210e7c7efb85a058"
   port: 27017
   # Single-node replica set — required for the change streams the engine
   # uses to react to config updates (same as docker-compose.yml's mongo
