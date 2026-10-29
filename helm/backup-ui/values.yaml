@@ -104,7 +104,7 @@ restore:
   # Application(s) deploying into the namespace until the restore is finalized.
   argocdNamespace: argocd
   # Throwaway pod that claims the new PVC so local-path provisions it.
-  helperImage: busybox:1.38@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
+  helperImage: busybox:1.38@sha256:a46257e06c82ad85242d0d38077d0a52d9896389ca60a1a59d3463db586e5fa4
   # Restores Velero fs-backups (Kopia) straight into the new volume. Keep it
   # compatible with the Kopia version inside Velero's node-agent.
   kopiaImage: kopia/kopia:latest@sha256:89fd95ee2942880ca00eae964266958a394421ddbdf69bca62e38afc55f5900e
