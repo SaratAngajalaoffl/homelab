@@ -57,7 +57,7 @@ pod:
       TZ: "Europe/London"
 
   sonarr:
-    image: lscr.io/linuxserver/sonarr:latest@sha256:48e36b608b461273b9dae857725cd0561a127f2c694b687318f6d0c5ce63e5c9
+    image: lscr.io/linuxserver/sonarr:latest@sha256:386c962ee6e260e3a5656b25df2ed056bcc9b6410e197d075f9547fd14c23bca
     env:
       PUID: "1000"
       PGID: "1000"
@@ -96,7 +96,7 @@ pod:
       storageClassName: local-path
 
   homarr:
-    image: ghcr.io/homarr-labs/homarr:latest@sha256:3b7fe93f8b31b0df568b9d6e5c7223418bf009bdb03ba0c91c24cf9eac7d3581
+    image: ghcr.io/homarr-labs/homarr:latest@sha256:2844201f11ce28b98183728dea2261de2b4fd8ed5480a4eef0b7977cc1a08dc0
     env:
       TZ: "Asia/Kolkata"
       PUID: "1000"
