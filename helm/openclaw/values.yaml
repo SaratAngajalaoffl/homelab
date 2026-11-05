@@ -9,7 +9,7 @@ server:
     # auto-sync, scale to 0, run `node dist/index.js doctor --fix
     # --non-interactive` in a one-off Job on the new image with the same three
     # PVCs and env, then re-enable auto-sync.
-    tag: "latest@sha256:fb26f0841659dc757f23feec9adeab51f11d76779a409db5d22e191b43841afa"
+    tag: "latest@sha256:db0e0809fbd0df375445e9eea8daf2a278ac7ac3a263fa6bfce8fb344ad3ad77"
   port: 18789
   args: ["dist/index.js", "gateway", "--bind", "lan", "--port", "18789"]
   securityContext:
