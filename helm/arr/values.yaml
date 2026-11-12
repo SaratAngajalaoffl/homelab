@@ -7,7 +7,7 @@ namespace: homelab-arr
 # container in this pod, with no explicit network_mode needed.
 pod:
   gluetun:
-    image: qmcgaw/gluetun:latest@sha256:75df789dea20551fa973f808133a712700bf198518f9d49ed581287777508556
+    image: qmcgaw/gluetun:latest@sha256:cbafe0945d0fe5a3c55ca64d43a85c5db270458f4c645ee65797b527f6f57a64
     env:
       # Kernel wireguard needs net.ipv4.conf.all.src_valid_mark=1, which is
       # not on this cluster's allowed pod-sysctl list (SysctlForbidden) and
@@ -83,7 +83,7 @@ pod:
       storageClassName: local-path
 
   prowlarr:
-    image: lscr.io/linuxserver/prowlarr:latest@sha256:431d7efebcef466e56adaa40a7a2fa2b0e85159a037b8bf465eaadbf0cf5bedf
+    image: lscr.io/linuxserver/prowlarr:latest@sha256:6660787a99b2e58203539583663c973b48979fc00ff2cb78dc0ea17429e1f6ef
     env:
       PUID: "1000"
       PGID: "1000"
@@ -164,7 +164,7 @@ jellyfin:
 seerr:
   image:
     repository: ghcr.io/seerr-team/seerr
-    tag: "latest@sha256:d8fab675b55ad293ded98fd71efcfd46054cbad9746534ae1cc4794a88c0b3be"
+    tag: "latest@sha256:aadee014b40e28cf9aa4928bc9d1183a6eb08f8c44d543cddc9efdcb16549be2"
   port: 5055
   env:
     LOG_LEVEL: debug
