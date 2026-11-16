@@ -42,6 +42,20 @@ Enabled when `restore.disks` in values.yaml is non-empty.
 volumes. StatefulSet data volumes (databases) are refused: restore those from their
 dump PVC. Details: docs/adr/0005-backup-restore.md.
 
+## S3 usage and deleting backups (image >= 0.4.0)
+- **Usage:** every `usage.intervalHours` (or on **Rescan now**) the dispatcher
+  runs a Job in `velero` from this same image (`SELF_IMAGE`) with the default
+  BSL's credential mounted and no ServiceAccount token, then copies the report
+  from the pod log into the `s3-usage` ConfigMap. Needs Role
+  `backup-ui-dispatcher-usage` in `velero` (Jobs incl. delete, pods list,
+  pods/log get, BSL list).
+- **Delete:** a Delete button per finished S3 backup -> `del-...` request
+  ConfigMap -> dispatcher re-checks (refuses running backups, ones an in-flight
+  restore reads, the only Completed scheduled backup, the only Completed backup)
+  and creates a Velero `DeleteBackupRequest`. The dispatcher has `create` on
+  deletebackuprequests, not `delete` on backups. Anyone holding the Basic Auth
+  password can therefore delete every S3 backup but the last good one.
+
 ## Access: public, Basic Auth
 `backups.smugiwara.com` sits behind Traefik `basicAuth` (Secret
 `backup-ui-basic-auth`, a SealedSecret in `templates/sealed-basic-auth.yaml`).

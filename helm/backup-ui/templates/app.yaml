@@ -112,6 +112,11 @@ spec:
             capabilities: { drop: ["ALL"] }
           env:
             {{- include "backup-ui.env" . | nindent 12 }}
+            # S3 usage scan (>= 0.4.0): the Job runs this same image. Empty
+            # SELF_IMAGE or interval 0 turns the scan off.
+            - { name: SELF_IMAGE, value: "{{ .Values.image.repository }}:{{ .Values.image.tag }}" }
+            - { name: USAGE_INTERVAL_HOURS, value: {{ .Values.usage.intervalHours | quote }} }
+            - { name: USAGE_SCAN_PREFIX, value: {{ .Values.usage.scanPrefix | quote }} }
           volumeMounts:
             - { name: categories, mountPath: /etc/backup-ui, readOnly: true }
           resources: {{ toYaml .Values.resources | nindent 12 }}

@@ -16,8 +16,9 @@ metadata:
   name: backup-ui-read
   namespace: {{ .Values.velero.namespace }}
 rules:
+  # podvolumebackups: per-run volume bytes (pre-dedup) on the dashboard.
   - apiGroups: ["velero.io"]
-    resources: ["backups", "schedules", "backupstoragelocations"]
+    resources: ["backups", "schedules", "backupstoragelocations", "podvolumebackups"]
     verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -82,9 +83,10 @@ metadata:
   name: backup-ui-dispatcher
   namespace: {{ .Values.namespace }}
 rules:
+  # create: the dispatcher writes the `s3-usage` report ConfigMap on first scan.
   - apiGroups: [""]
     resources: ["configmaps"]
-    verbs: ["get", "list", "patch", "delete"]
+    verbs: ["get", "list", "create", "patch", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -104,6 +106,12 @@ rules:
   - apiGroups: ["velero.io"]
     resources: ["backups"]
     verbs: ["get", "list", "create"]
+  # Deleting an S3 backup = creating a DeleteBackupRequest (what `velero backup
+  # delete` does); list is to refuse a second one for the same backup. Note: no
+  # `delete` verb on backups themselves - Velero does the removal.
+  - apiGroups: ["velero.io"]
+    resources: ["deletebackuprequests"]
+    verbs: ["list", "create"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -113,6 +121,41 @@ metadata:
 roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: backup-ui-dispatcher }
 subjects:
   - { kind: ServiceAccount, name: backup-ui-dispatcher, namespace: {{ .Values.namespace }} }
+{{- if gt (int .Values.usage.intervalHours) 0 }}
+---
+# S3 usage scan: the dispatcher runs this same image as a Job in the Velero
+# namespace with the default BSL's credential mounted (the web pod never holds
+# it), then reads the Job pod's log for the report. The Job itself gets no
+# ServiceAccount token. Kept separate from the restore grants so it works even
+# with restore turned off.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-ui-dispatcher-usage
+  namespace: {{ .Values.velero.namespace }}
+rules:
+  - apiGroups: ["velero.io"]
+    resources: ["backupstoragelocations"]
+    verbs: ["get", "list"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-ui-dispatcher-usage
+  namespace: {{ .Values.velero.namespace }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: backup-ui-dispatcher-usage }
+subjects:
+  - { kind: ServiceAccount, name: backup-ui-dispatcher, namespace: {{ .Values.namespace }} }
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

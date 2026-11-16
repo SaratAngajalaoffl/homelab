@@ -12,7 +12,7 @@ image:
   # Source and CI live in https://github.com/SaratAngajalaoffl/homelab-backup-ui;
   # a vX.Y.Z tag there publishes :X.Y.Z. Public image, so no pull secret.
   # Renovate bumps this tag like any other image.
-  tag: "0.3.0@sha256:e1e3b760bba0873ec15111f9bc422d2983c570750302ebd75f0f4c5c37182e76"
+  tag: "0.4.0@sha256:4f549eac1c871d86f3816d8f293999f7c11a2c1958521ebfb4b6967de4bcb427"
   pullPolicy: IfNotPresent
 imagePullSecrets: []
 
@@ -113,6 +113,15 @@ restore:
   # Velero's static default).
   credentialSecret: velero-cloud-credentials
   repoPasswordSecret: velero-repo-credentials
+
+# S3 usage panel (image >= 0.4.0). The dispatcher periodically runs a Job in the
+# velero namespace, using the default BSL's credential, that lists the bucket and
+# sizes each folder. 0 turns the scan off and drops its RBAC.
+usage:
+  intervalHours: 6
+  # Bucket prefix to size; "" = the default BSL prefix's top-level folder
+  # (e.g. "automatic/"), which also surfaces stale non-Velero data under it.
+  scanPrefix: ""
 
 sealedSecrets:
   # PUBLIC certificate endpoint: its NotBefore is the newest signing key's
