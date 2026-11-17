@@ -1,0 +1,10 @@
+apiVersion: v2
+name: unpacked
+description: Website for the Unpacked by Mugiwara YouTube channel at the unpackedbymugiwara.com apex (Next.js standalone server)
+type: application
+version: 0.1.0
+appVersion: "latest"
+dependencies:
+  - name: homelab-common
+    version: "0.1.0"
+    repository: "file://../homelab-common"

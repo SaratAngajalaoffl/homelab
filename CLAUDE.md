@@ -100,6 +100,7 @@ kubectl -n homelab-backup-local create job --from=cronjob/backup-local manual-$(
     ├── portainer/
     ├── portfolio/          # Public personal site at the smugiwara.com apex (image built in portfolio-27 repo)
     ├── searxng/
+    ├── unpacked/           # unpackedbymugiwara.com channel site (private GHCR image; CONTEXT.md has pull-secret steps)
     ├── webui/
     └── yggdrasil/
 ```
@@ -138,6 +139,7 @@ Store exported JSON in a vault (e.g. Bitwarden), not in git.
 | `portainer` | Docker/k8s management UI. |
 | `portfolio` | Personal portfolio site at `smugiwara.com` (`www.` 301s to the apex). Static Next.js export on nginx; image built and pushed to public GHCR by the separate `portfolio-27` repo's CI, digest bumps arrive via Renovate. Stateless — no PVC, nothing to back up. |
 | `searxng` | Self-hosted SearXNG metasearch engine; shared, key-free web-search backend for `webui`, `openclaw`, and `hermes`. No auth of its own internally; public Ingress gates it with Basic Auth instead of an API key, since it's a browsable UI. |
+| `unpacked` | Website for the Unpacked by Mugiwara YouTube channel at `unpackedbymugiwara.com` (`www.` 301s to the apex). Next.js standalone server; image built by the separate private `unpacked-by-mugiwara-web` repo's CI and pushed to **private** GHCR, so it needs the sealed `ghcr-pull` secret and manual tag bumps (Renovate can't see it) — see `helm/unpacked/CONTEXT.md`. Stateless. |
 | `webui` | Open WebUI; `OLLAMA_BASE_URL` points to the `ollama` stack over in-cluster DNS, `SEARXNG_QUERY_URL` to the `searxng` stack for web search. |
 | `yggdrasil` | Self-hosted deploy of the user's own [yggdrasil-hq/yggdrasil-core](https://github.com/yggdrasil-hq/yggdrasil-core) (AI-orchestrated dev platform, pre-alpha). GHCR images, not built from source. Shares this same k3s cluster (ADR 0004's rationale #3) — the Orchestrator targets this cluster's API directly. |
 | `argocd` | GitOps delivery layer — app-of-apps managing every stack above via `git push` to `main`. See `helm/argocd/CONTEXT.md`. |

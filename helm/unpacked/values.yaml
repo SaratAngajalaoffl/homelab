@@ -1,0 +1,44 @@
+namespace: homelab-unpacked
+
+web:
+  # Built and pushed by github.com/SaratAngajalaoffl/unpacked-by-mugiwara-web's
+  # own .github/workflows/ci.yml on every push to its main branch (tags
+  # `latest` and `sha-<short>`). The package is PRIVATE, so pulls need the
+  # sealed `ghcr-pull` secret — see CONTEXT.md. Stateless: no PVC, nothing to
+  # back up.
+  image:
+    repository: ghcr.io/saratangajalaoffl/unpacked-by-mugiwara-web
+    # Pinned to CI's immutable `sha-<short>` tag (commit 6b9595e) because the
+    # digest can't be resolved without GHCR credentials. Re-pin to
+    # `latest@sha256:<digest>` once the pull secret exists — see CONTEXT.md.
+    tag: "sha-6b9595e"
+  imagePullSecrets: ["ghcr-pull"]
+  # Next.js standalone `node server.js`, PORT=3000 baked into the image.
+  port: 3000
+  securityContext:
+    # Matches the image's own `nextjs` user (uid/gid 1001).
+    runAsNonRoot: true
+    runAsUser: 1001
+    runAsGroup: 1001
+    fsGroup: 1001
+  resources:
+    requests:
+      cpu: 20m
+      memory: 96Mi
+    limits:
+      memory: 384Mi
+
+# Public by design (anonymous visitors), same as portfolio: generous per-IP
+# rate limit only to blunt scraping/abuse.
+rateLimit:
+  average: 20
+  burst: 100
+  period: 1s
+
+ingress:
+  host: unpackedbymugiwara.com
+  # Same Ingress + certificate; 301'd to the apex by templates/web.yaml.
+  redirectHosts:
+    - www.unpackedbymugiwara.com
+  className: traefik
+  clusterIssuer: letsencrypt-prod
