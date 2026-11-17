@@ -8,10 +8,10 @@ web:
   # back up.
   image:
     repository: ghcr.io/saratangajalaoffl/unpacked-by-mugiwara-web
-    # Pinned to CI's immutable `sha-<short>` tag (commit 6b9595e) because the
-    # digest can't be resolved without GHCR credentials. Re-pin to
-    # `latest@sha256:<digest>` once the pull secret exists — see CONTEXT.md.
-    tag: "sha-6b9595e"
+    # Digest-pinned so a new push to the site's main is an explicit values
+    # diff (IfNotPresent would never re-pull a moved `latest`). Renovate has no
+    # GHCR credentials, so bump this by hand — see CONTEXT.md.
+    tag: "latest@sha256:39008f24b2196aa29253af39208fe98da0b8a17df127a634a4873f4e43ba54e5"
   imagePullSecrets: ["ghcr-pull"]
   # Next.js standalone `node server.js`, PORT=3000 baked into the image.
   port: 3000

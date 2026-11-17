@@ -4,7 +4,10 @@ Website for the Unpacked by Mugiwara YouTube channel, served at
 `unpackedbymugiwara.com` (`www.` 301s to the apex). Source, Dockerfile and CI live in the
 private `SaratAngajalaoffl/unpacked-by-mugiwara-web` repo; this chart only deploys the image.
 
-## 1. GHCR pull secret (required before the pod can start)
+## 1. GHCR pull secret
+
+**Done 2026-11-17** — `templates/sealed-ghcr-pull-secret.yaml` exists. Redo these steps if the
+PAT is rotated or expires.
 
 The image package is **private**, so the Deployment references an `imagePullSecret` named
 `ghcr-pull`. Until it exists the pod sits in `ImagePullBackOff`.
@@ -26,9 +29,7 @@ The image package is **private**, so the Deployment references an `imagePullSecr
 
 ## 2. Image pinning
 
-`values.yaml` pins CI's immutable `sha-<short>` tag because the digest couldn't be resolved
-without GHCR credentials. Once you have the PAT, switch to the digest-pinned form used by every
-other stack:
+`values.yaml` pins `latest@sha256:<digest>`. To re-pin after a push to the site's `main`:
 
 ```bash
 echo <the-PAT> | docker login ghcr.io -u <your-gh-username> --password-stdin
