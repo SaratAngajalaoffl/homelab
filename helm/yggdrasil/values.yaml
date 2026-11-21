@@ -78,8 +78,13 @@ db:
 
 minio:
   image:
-    repository: minio/minio
-    tag: "latest@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e"
+    # MinIO stopped publishing images (minio/minio on Docker Hub and Quay are
+    # gone), so the old pinned digest became unpullable after a node restart.
+    # elestio/minio is what upstream yggdrasil-core's compose files use: a
+    # rebuild of MinIO's last official release (RELEASE.2025-09-07T16-13-09Z),
+    # same entrypoint/user//data layout, so the existing PVC is a drop-in.
+    repository: elestio/minio
+    tag: "latest@sha256:25348a257f1ece1b192f25f6cd9854618fa86422ac87b494b5d4e629c556d4bd"
   port: 9000
   args: ["server", "/data", "--console-address", ":9001"]
   envSecretName: yggdrasil-secrets
