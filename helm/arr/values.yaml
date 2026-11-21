@@ -7,7 +7,7 @@ namespace: homelab-arr
 # container in this pod, with no explicit network_mode needed.
 pod:
   gluetun:
-    image: qmcgaw/gluetun:latest@sha256:cbafe0945d0fe5a3c55ca64d43a85c5db270458f4c645ee65797b527f6f57a64
+    image: qmcgaw/gluetun:latest@sha256:3c43ec327d7ab2b5f1dc798b92a7640de9a1e1b74a81c9a5143adb383c03d28b
     env:
       # Kernel wireguard needs net.ipv4.conf.all.src_valid_mark=1, which is
       # not on this cluster's allowed pod-sysctl list (SysctlForbidden) and
@@ -57,7 +57,7 @@ pod:
       TZ: "Europe/London"
 
   sonarr:
-    image: lscr.io/linuxserver/sonarr:latest@sha256:c7d1df25e428da6c9ace05daea0d34e59522978a3843ea1944812f855af4086c
+    image: lscr.io/linuxserver/sonarr:latest@sha256:339814bbf50599ac3b59077c252f29833d0138b59a062d0e82ce37bdc7f04f86
     env:
       PUID: "1000"
       PGID: "1000"
@@ -96,7 +96,7 @@ pod:
       storageClassName: local-path
 
   homarr:
-    image: ghcr.io/homarr-labs/homarr:latest@sha256:7b3ab85bad2656be6c940b9d26117254edb6d998aeb5b66dfdc795f2e737802a
+    image: ghcr.io/homarr-labs/homarr:latest@sha256:742940b00ed13e8649ddfd81532ad8f4140ad413ed0591f464ff6e4f7ff3c276
     env:
       TZ: "Asia/Kolkata"
       PUID: "1000"
