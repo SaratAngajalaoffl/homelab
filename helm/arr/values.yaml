@@ -116,8 +116,8 @@ pod:
 # read-only by jellyfin below via its `media` subPath mount of this same PVC.
 # Previously a hostPath mount at ~/storage/homelab/homelab-data/arr; that tree
 # was deleted (operator no longer needs the library) so this is now a regular
-# PVC on local-path, per ADR 0005's storage-reality note that PVCs land under
-# /var/lib/rancher/k3s/storage, not the data disk.
+# PVC on local-path under /var/lib/rancher/k3s/storage. Its data physically
+# lives on the Seagate HDD via a host bind mount (CONTEXT.md "HDD-backed PVCs").
 data:
   persistence:
     name: arr-data

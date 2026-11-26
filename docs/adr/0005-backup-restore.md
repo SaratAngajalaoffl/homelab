@@ -266,7 +266,8 @@ endpoint.
   "pointed at" `homelab-conf`/`homelab-data`; nothing ever implemented that and
   there are no static PVs in this repo. Documented as reality rather than
   migrated — see CONTEXT.md's "local-path root" entry and ADR 0002's status
-  note.
+  note. *(Superseded in part 2026-11-26: the bulk PVCs now live on the HDD;
+  see the dated section below.)*
 - **ADR 0004's monitoring stack** (kube-prometheus-stack, Loki, Grafana) remains
   unbuilt. The watchdog covers backups specifically; Velero also exposes
   Prometheus metrics for whenever that stack lands.
@@ -336,3 +337,40 @@ onto a chosen disk, without touching the rest of the namespace.
   Jobs and PVC create/delete in the category namespaces, plus Application patch in
   `argocd`. All stay in the dispatcher; the web pod only lists PVCs and writes
   request ConfigMaps.
+
+## 2026-11-26 — Bulk PVCs moved to the Seagate HDD
+
+The OS SSD (`nvme1n1p2`) hit 91% and the kubelet began failing image GC. PVC
+data was 345 GiB, of which four volumes were ~311 GiB: `arr-arr-data`
+(171 GB), `immich-immich-server-data` (81 GB), `bifrost-bifrost-server-data`
+(58 GB) and `ollama-server-data` (24 GB). These four moved to the internal
+Seagate 1T HDD (reformatted exFAT → btrfs). Databases, dumps and app configs
+stayed on the SSD for latency. The SSD dropped to 54%.
+
+**Mechanism: host bind mounts, not new PVs or a second StorageClass.** Each
+volume's data lives at `~/files/hdd/k3s-storage/<pvc dir>` and is bind-mounted
+over its original local-path directory from `/etc/fstab`. A k3s systemd
+drop-in `RequiresMountsFor=` each target. This was chosen over recreating PVs
+with new paths, which would have meant immutable PV specs, ArgoCD-owned PVCs
+and the `Delete` reclaim policy all in play at once. With bind mounts no
+Kubernetes object changed, and rollback was an unmount. The trade-off is that
+the layout is invisible to Kubernetes and lives in host config. CONTEXT.md
+"HDD-backed PVCs" documents it and its caveats. A second local-path
+StorageClass rooted on the HDD remains the cleaner option for *new* bulk
+volumes.
+
+**Procedure.**
+1. Full restic snapshot of the whole root to munin (`69a3a472`, 345 GiB,
+   `restic check` clean).
+2. Live pre-copy with rsync.
+3. Stop k3s plus `k3s-killall.sh`, then a final `rsync --delete` and a dry-run
+   verification that it was empty for every volume. About 15 s of sync inside a
+   few minutes of downtime.
+4. Mount and start k3s; the operator verified by hand.
+5. Delete the SSD originals through a non-recursive bind of the root.
+
+**Fallout fixed.**
+- `helm/backup-local` passed `--one-file-system`, which would have made
+  whole-root disk backups silently skip the four HDD volumes. It was removed.
+- openclaw's gateway lock survived the hard kill and needed
+  `openclaw gateway recover-lock`.

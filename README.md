@@ -154,13 +154,14 @@ status script deliberately uses plain `kubectl` so it works without it.
 | Path | Purpose |
 |------|---------|
 | `~/homelab/` | This repo — Helm charts, ArgoCD manifests, scripts |
-| `/var/lib/rancher/k3s/storage/` | **Where every PVC actually lives** — dynamically provisioned by local-path on the OS disk |
+| `/var/lib/rancher/k3s/storage/` | **Where every PVC is provisioned**: by local-path, on the OS SSD |
+| `~/files/hdd/k3s-storage/` | Seagate HDD; real home of the four bulk PVCs (arr-data, immich uploads, bifrost, ollama), bind-mounted into the root above. See CONTEXT.md "HDD-backed PVCs" |
 | `~/storage/homelab/homelab-data/arr/` | The `arr`/`jellyfin` media tree, a `hostPath` (currently empty) |
 
 > ADR 0002's `homelab-conf`/`homelab-data` split describes the `hostPath`
 > mounts only. It was never implemented for PVCs — nothing points a PVC at
-> those paths, and the 932G disk at `~/storage` is nearly empty while all PVC
-> data sits on the OS disk. See ADR 0005's "Known gaps".
+> those paths. PVC data sits under the local-path root, with the bulk volumes
+> bind-mounted from the HDD. See ADR 0005.
 
 ## Agent docs
 

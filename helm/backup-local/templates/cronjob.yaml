@@ -114,12 +114,16 @@ spec:
                     echo "Backing up {{ .Values.pvcRoot }} (whole root) ..."
                   fi
 
+                  # No --one-file-system: the bulk PVCs (arr-data, immich
+                  # uploads, bifrost, ollama) are bind mounts from the Seagate
+                  # HDD inside the local-path root (see CONTEXT.md "HDD-backed
+                  # PVCs"), and that flag made whole-root runs silently skip
+                  # them. Nothing else is mounted under the root.
                   restic backup "$@" \
                     --tag "${TAGS}" \
                     --tag "job-${JOB_NAME}" \
                     --host loki \
-                    --exclude-caches \
-                    --one-file-system
+                    --exclude-caches
 
                   # Group by the paths backed up (i.e. the category/namespace
                   # combination) so each keeps its own last N, instead of a large
