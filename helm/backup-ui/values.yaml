@@ -94,7 +94,10 @@ restore:
       name: "OS disk (NVMe)"
       storageClass: local-path
       hostRoot: /var/lib/rancher/k3s/storage
-    # The 932G data disk needs its own StorageClass first (local-path serves one
+    # NOTE: restoring arr-data/immich-server-data/bifrost/ollama here puts
+    # the new PVC on the SSD, not the HDD they normally live on (their HDD
+    # placement is a host bind mount, see CONTEXT.md "HDD-backed PVCs").
+    # A further disk needs its own StorageClass first (local-path serves one
     # root). Once one exists, add it here, e.g.:
     # - id: data
     #   name: "Data disk (~/storage)"

@@ -34,8 +34,10 @@ envSecretName: backup-local-secrets
 # Every PVC on this cluster is dynamically provisioned by local-path under
 # this single root (verified: local-path-config nodePathMap ->
 # /var/lib/rancher/k3s/storage), so one read-only mount captures all of them.
-# NOTE: this is the OS disk (nvme1n1p2), not the ~/storage data disk — see
-# CONTEXT.md's "local-path root" entry.
+# NOTE: this is the OS disk (nvme1n1p2), except the four bulk PVCs, which are
+# bind-mounted into it from the Seagate HDD — see CONTEXT.md's "local-path
+# root" and "HDD-backed PVCs" entries. The backup command must not use
+# --one-file-system, or it would skip those four.
 pvcRoot: /var/lib/rancher/k3s/storage
 
 # The drive is a udisks automount. hostPath type: Directory makes the pod
